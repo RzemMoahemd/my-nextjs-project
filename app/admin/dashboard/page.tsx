@@ -20,15 +20,16 @@ export default function AdminDashboard() {
   const [user, setUser] = useState<User | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [filters, setFilters] = useState({
-    search: '',
-    category: 'all',
-    priceRange: 'all',
-    status: 'all',
-    stockStatus: 'all',
-    badge: 'all'
+    search: "",
+    category: "all",
+    priceRange: "all",
+    status: "all",
+    stockStatus: "all",
+    badge: "all",
   })
-  const [sortBy, setSortBy] = useState('recent')
+  const [sortBy, setSortBy] = useState("recent")
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [productToDelete, setProductToDelete] = useState<{ id: string; name: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -38,6 +39,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     checkAuth()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function checkAuth() {
@@ -51,8 +53,11 @@ export default function AdminDashboard() {
         return
       }
 
-      // Verify admin access
-      const { data: adminUser, error } = await supabase.from("admin_users").select("*").eq("id", user.id).single()
+      const { data: adminUser, error } = await supabase
+        .from("admin_users")
+        .select("*")
+        .eq("id", user.id)
+        .single()
 
       if (error || !adminUser) {
         await supabase.auth.signOut()
@@ -143,7 +148,7 @@ export default function AdminDashboard() {
   }
 
   // Get unique categories for filter dropdown
-  const categories = Array.from(new Set(products.map(p => p.category))).sort()
+  const categories = Array.from(new Set(products.map((p) => p.category))).sort()
 
   // Prendre le prix promotionnel en compte si disponible
   const getEffectivePrice = (product: Product) => product.promotional_price ?? product.price
@@ -158,7 +163,7 @@ export default function AdminDashboard() {
   }
 
   const getVariantsInfo = (product: Product) => {
-    if (!product.sizes?.length && !product.colors?.length) return 'Aucune variante'
+    if (!product.sizes?.length && !product.colors?.length) return "Aucune variante"
     const sizesCount = product.sizes?.length ?? 0
     const colorsCount = product.colors?.length ?? 0
     if (sizesCount > 0 && colorsCount > 0) {
@@ -173,89 +178,88 @@ export default function AdminDashboard() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
+    return date.toLocaleDateString("fr-FR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     })
   }
 
   const getStockStatus = (totalStock: number) => {
-    const lowStockThreshold = 5 // Seuil configurable
+    const lowStockThreshold = 5
     if (totalStock === 0) {
-      return { text: 'Rupture', color: 'text-red-600', icon: '❌' }
+      return { text: "Rupture", color: "text-red-600", icon: "❌" }
     } else if (totalStock <= lowStockThreshold) {
-      return { text: `${totalStock}`, color: 'text-orange-600', icon: '⚠' }
+      return { text: `${totalStock}`, color: "text-orange-600", icon: "⚠" }
     }
-    return { text: `${totalStock}`, color: 'text-green-600', icon: '' }
+    return { text: `${totalStock}`, color: "text-green-600", icon: "" }
   }
 
   // Filter products based on active filters
-  const filteredProducts = products.filter(product => {
+  const filteredProducts = products.filter((product) => {
     // Search filter
     if (filters.search) {
       const searchLower = filters.search.toLowerCase()
       const nameMatch = product.name.toLowerCase().includes(searchLower)
       const categoryMatch = product.category.toLowerCase().includes(searchLower)
-      const subcategoryMatch = Array.isArray(product.subcategory) &&
-        product.subcategory.some(sub =>
-          typeof sub === 'string' && sub.toLowerCase().includes(searchLower)
-        )
+      const subcategoryMatch =
+        Array.isArray(product.subcategory) &&
+        product.subcategory.some((sub) => typeof sub === "string" && sub.toLowerCase().includes(searchLower))
       if (!nameMatch && !categoryMatch && !subcategoryMatch) {
         return false
       }
     }
 
     // Category filter
-    if (filters.category !== 'all' && product.category !== filters.category) {
+    if (filters.category !== "all" && product.category !== filters.category) {
       return false
     }
 
     // Price range filter
-    if (filters.priceRange !== 'all') {
+    if (filters.priceRange !== "all") {
       const price = getEffectivePrice(product)
       switch (filters.priceRange) {
-        case '0-50':
+        case "0-50":
           if (price > 50) return false
           break
-        case '51-100':
+        case "51-100":
           if (price <= 50 || price > 100) return false
           break
-        case '101-200':
+        case "101-200":
           if (price <= 100 || price > 200) return false
           break
-        case '200+':
+        case "200+":
           if (price <= 200) return false
           break
       }
     }
 
     // Status filter
-    if (filters.status !== 'all') {
-      if (filters.status === 'active' && !product.is_active) return false
-      if (filters.status === 'inactive' && product.is_active) return false
+    if (filters.status !== "all") {
+      if (filters.status === "active" && !product.is_active) return false
+      if (filters.status === "inactive" && product.is_active) return false
     }
 
     // Stock filter
-    if (filters.stockStatus !== 'all') {
+    if (filters.stockStatus !== "all") {
       const totalStock = getTotalStock(product)
       switch (filters.stockStatus) {
-        case 'in_stock':
+        case "in_stock":
           if (totalStock <= 0) return false
           break
-        case 'low_stock':
+        case "low_stock":
           const lowStockThreshold = 5
           if (totalStock <= 0 || totalStock > lowStockThreshold) return false
           break
-        case 'out_of_stock':
+        case "out_of_stock":
           if (totalStock > 0) return false
           break
       }
     }
 
     // Badge filter
-    if (filters.badge !== 'all') {
-      if (filters.badge === 'none') {
+    if (filters.badge !== "all") {
+      if (filters.badge === "none") {
         if (product.badge) return false
       } else if (product.badge !== filters.badge) {
         return false
@@ -268,13 +272,13 @@ export default function AdminDashboard() {
   // Apply sorting
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     switch (sortBy) {
-      case 'recent':
+      case "recent":
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      case 'price_low':
+      case "price_low":
         return getEffectivePrice(a) - getEffectivePrice(b)
-      case 'price_high':
+      case "price_high":
         return getEffectivePrice(b) - getEffectivePrice(a)
-      case 'stock_first':
+      case "stock_first":
         return getTotalStock(b) - getTotalStock(a)
       default:
         return 0
@@ -291,80 +295,291 @@ export default function AdminDashboard() {
   const paginatedProducts = sortedProducts.slice(startIndex, startIndex + itemsPerPage)
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      {/* Header */}
-      <header className="bg-white border-b border-neutral-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-neutral-900">ELEGANCE Admin</h1>
-            <p className="text-neutral-600 text-sm">Connecté en tant que {user.email}</p>
+    <div className="relative min-h-screen bg-neutral-50">
+      {/* Collapsible Sidebar */}
+      <aside
+        className={`fixed left-0 top-0 h-full z-30 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+          sidebarCollapsed ? "w-20" : "w-80"
+        }`}
+      >
+        <div className="relative h-full bg-white/80 backdrop-blur-xl border-r border-neutral-200/60 shadow-sm rounded-r-3xl overflow-visible flex flex-col">
+          {/* Sidebar Header - Fixed Top */}
+          <div className="bg-white border-b border-neutral-200/50 px-5 py-4 shadow-sm rounded-r-3xl flex-shrink-0 relative">
+            <div className="flex items-center justify-center">
+              {!sidebarCollapsed ? (
+                <div className="flex items-center gap-3 w-full">
+                  {/* Logo */}
+                  <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+                    <span className="text-white font-bold text-sm">E</span>
+                  </div>
+                  {/* App Info */}
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-bold text-neutral-900 leading-tight">ELEGANCE</h3>
+                    <p className="text-[10px] text-neutral-600 font-medium">Dashboard Admin</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
+                  <span className="text-white font-bold text-sm">E</span>
+                </div>
+              )}
+            </div>
+
+            {/* Sidebar Toggle Button */}
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="absolute top-1/2 -right-4 transform -translate-y-1/2 z-[999] w-9 h-7 bg-white border border-neutral-200 shadow-md hover:shadow-lg hover:bg-neutral-50 rounded-2xl flex items-center justify-center transition-all duration-200 ease-out"
+              aria-label={sidebarCollapsed ? "Ouvrir le panneau" : "Fermer le panneau"}
+            >
+              <svg
+                className={`w-3.5 h-3.5 text-neutral-900 transition-transform duration-200 ${
+                  sidebarCollapsed ? "" : "rotate-180"
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                strokeWidth={2.5}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-          >
-            <LogOut size={18} />
-            Déconnexion
-          </button>
+          {!sidebarCollapsed && (
+            <div className="flex flex-col min-h-full px-5 pt-8 pb-6 gap-6">
+              {/* Header Info */}
+              <div className="flex-shrink-0 space-y-1">
+                <p className="text-xs font-semibold tracking-[0.18em] text-neutral-400 uppercase">
+                  Admin Panel
+                </p>
+                <p className="text-sm font-medium text-neutral-900 truncate">{user.email}</p>
+              </div>
+
+              {/* Quick Actions Menu */}
+              <div className="flex-shrink-0">
+                <p className="text-[11px] font-semibold tracking-[0.18em] text-neutral-400 uppercase mb-3">
+                  Actions rapides
+                </p>
+                <div className="space-y-2">
+                  <Link
+                    href="/admin/settings"
+                    className="flex items-center gap-3 p-3 bg-neutral-50/80 hover:bg-neutral-100 rounded-xl transition-colors border border-neutral-200/80 hover:border-neutral-300"
+                  >
+                    <span className="text-xl flex-shrink-0">⚙️</span>
+                    <span className="text-sm font-medium text-neutral-800">Paramètres</span>
+                  </Link>
+
+                  <Link
+                    href="/account"
+                    className="flex items-center gap-3 p-3 bg-neutral-50/80 hover:bg-neutral-100 rounded-xl transition-colors border border-neutral-200/80 hover:border-neutral-300"
+                  >
+                    <span className="text-xl flex-shrink-0">👤</span>
+                    <span className="text-sm font-medium text-neutral-800">Mon compte</span>
+                  </Link>
+
+                  <Link
+                    href="?status=pending"
+                    className="flex items-center gap-3 p-3 bg-neutral-50/80 hover:bg-orange-50 rounded-xl transition-colors border border-neutral-200/80 hover:border-orange-300 hover:text-orange-700"
+                  >
+                    <span className="text-xl flex-shrink-0">🧾</span>
+                    <span className="text-sm font-medium text-neutral-800">Cmd. attente</span>
+                  </Link>
+
+                  <Link
+                    href="/admin/notifications"
+                    className="flex items-center gap-3 p-3 bg-neutral-50/80 hover:bg-blue-50 rounded-xl transition-colors border border-neutral-200/80 hover:border-blue-300 hover:text-blue-700"
+                  >
+                    <span className="text-xl flex-shrink-0">🔔</span>
+                    <span className="text-sm font-medium text-neutral-800">Notifications</span>
+                  </Link>
+                </div>
+              </div>
+
+              {/* Logout Button */}
+              <div className="flex-grow flex items-end">
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 p-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors border border-red-200/80 hover:border-red-300"
+                >
+                  <LogOut size={20} className="flex-shrink-0" />
+                  <span className="text-sm font-medium">Déconnexion</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {sidebarCollapsed && (
+            <div className="flex flex-col h-full items-center justify-between py-8 pb-6">
+              <div className="flex flex-col gap-3">
+                <Link
+                  href="/admin/settings"
+                  className="w-10 h-10 flex items-center justify-center rounded-2xl bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 hover:border-neutral-300 transition-colors"
+                  title="Paramètres"
+                >
+                  <span className="text-lg">⚙️</span>
+                </Link>
+
+                <Link
+                  href="/account"
+                  className="w-10 h-10 flex items-center justify-center rounded-2xl bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 hover:border-neutral-300 transition-colors"
+                  title="Mon compte"
+                >
+                  <span className="text-lg">👤</span>
+                </Link>
+
+                <Link
+                  href="?status=pending"
+                  className="w-10 h-10 flex items-center justify-center rounded-2xl bg-orange-50 hover:bg-orange-100 border border-orange-200 hover:border-orange-300 transition-colors"
+                  title="Commandes en attente"
+                >
+                  <span className="text-lg">🧾</span>
+                </Link>
+
+                <Link
+                  href="/admin/notifications"
+                  className="w-10 h-10 flex items-center justify-center rounded-2xl bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-300 transition-colors"
+                  title="Notifications"
+                >
+                  <span className="text-lg">🔔</span>
+                </Link>
+
+                <button
+                  onClick={() => setFilters((prev) => ({ ...prev, stockStatus: "out_of_stock" }))}
+                  className="w-10 h-10 flex items-center justify-center rounded-2xl bg-red-50 hover:bg-red-100 border border-red-200 hover:border-red-300 transition-colors"
+                  title="Produits en rupture"
+                >
+                  <span className="text-lg">📦</span>
+                </button>
+              </div>
+
+              <button
+                onClick={handleLogout}
+                className="w-10 h-10 flex items-center justify-center rounded-2xl border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors"
+                title="Déconnexion"
+              >
+                <LogOut size={18} />
+              </button>
+            </div>
+          )}
+        </div>
+      </aside>
+
+      {/* Header with dynamic margin */}
+      <header
+        className={`bg-white border-b border-neutral-200 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+          sidebarCollapsed ? "ml-20" : "ml-80"
+        }`}
+      >
+        <div className={`${sidebarCollapsed ? "pl-6" : "pl-4"} pr-8 py-6 flex justify-between items-center`}>
+          <div>
+            <h1 className="text-3xl font-bold text-neutral-900">ELEGANCE Admin</h1>
+            <p className="text-neutral-600 text-sm">Tableau de bord principal</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-neutral-600">Connecté en tant que {user.email}</span>
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg p-6 border border-neutral-200">
-            <p className="text-neutral-600 text-sm font-medium mb-2">Total de produits</p>
-            <p className="text-4xl font-bold text-neutral-900">{products.length}</p>
+      <main
+        className={`flex-1 p-8 bg-neutral-50 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+          sidebarCollapsed ? "ml-20" : "ml-80"
+        }`}
+      >
+        {/* Stats Row */}
+        <div className="flex flex-col md:flex-row gap-3 md:gap-6 mb-8">
+          <div className="bg-white rounded-xl p-3 border border-neutral-200 flex items-center gap-3 flex-1 shadow-sm">
+            <div className="text-2xl">📦</div>
+            <div className="flex-1">
+              <p className="text-gray-500 text-xs font-medium">Total de produits</p>
+              <p className="text-3xl font-bold text-neutral-900">{products.length}</p>
+            </div>
           </div>
 
-          <div className="bg-white rounded-lg p-6 border border-neutral-200">
-            <p className="text-neutral-600 text-sm font-medium mb-2">Produits actifs</p>
-            <p className="text-4xl font-bold text-green-600">{activeCount}</p>
+          <div className="bg-white rounded-xl p-3 border border-neutral-200 flex items-center gap-3 flex-1 shadow-sm">
+            <div className="text-2xl">🟢</div>
+            <div className="flex-1">
+              <p className="text-gray-500 text-xs font-medium">Produits actifs</p>
+              <p className="text-3xl font-bold text-green-600">{activeCount}</p>
+            </div>
           </div>
 
-          <div className="bg-white rounded-lg p-6 border border-neutral-200">
-            <p className="text-neutral-600 text-sm font-medium mb-2">Produits désactivés</p>
-            <p className="text-4xl font-bold text-red-600">{inactiveCount}</p>
-          </div>
-        </div>
-
-        {/* Actions - Sticky Header */}
-        <div className="sticky top-0 z-20 bg-neutral-50/95 backdrop-blur-sm border-y border-neutral-200 py-4 mb-8 shadow-sm">
-          <div className="flex flex-wrap gap-4">
-            <Link
-              href="/admin/products/new"
-              className="flex items-center gap-2 bg-neutral-900 text-white px-6 py-3 rounded-lg font-semibold hover:bg-neutral-800 transition"
-            >
-              <Plus size={20} />
-              Ajouter un produit
-            </Link>
-            <Link
-              href="/admin/orders"
-              className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
-            >
-              📋 Gérer les commandes
-            </Link>
-            <Link
-              href="/admin/categories"
-              className="flex items-center gap-2 bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition"
-            >
-              🏷️ Gérer les catégories
-            </Link>
-            <Link
-              href="/admin/coupons"
-              className="flex items-center gap-2 bg-orange-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-700 transition"
-            >
-              🎫 Codes promo
-            </Link>
+          <div className="bg-white rounded-xl p-3 border border-neutral-200 flex items-center gap-3 flex-1 shadow-sm">
+            <div className="text-2xl">🔴</div>
+            <div className="flex-1">
+              <p className="text-gray-500 text-xs font-medium">Produits désactivés</p>
+              <p className="text-3xl font-bold text-red-600">{inactiveCount}</p>
+            </div>
           </div>
         </div>
 
-        {/* Filters & Search */}
+        {/* Actions - Compact Enhanced Sticky Header */}
+        <div className="sticky top-0 z-20 bg-gradient-to-r from-neutral-50 to-neutral-100/95 backdrop-blur-sm border-y border-neutral-200/50 py-3 mb-6 shadow-lg">
+          <div className="max-w-5xl mx-auto px-1">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 max-w-4xl md:max-w-5xl">
+              {/* Add Product - Primary Action */}
+              <Link
+                href="/admin/products/new"
+                className="group relative flex flex-col items-center gap-1.5 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-2.5 rounded-lg font-semibold text-xs md:text-sm hover:from-emerald-400 hover:to-emerald-500 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 shadow-sm"
+              >
+                <Plus size={20} className="md:w-4 md:h-4" />
+                <span className="text-center leading-tight text-xs md:text-xs">
+                  Ajouter un
+                  <br />
+                  produit
+                </span>
+                <div className="absolute inset-0 bg-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+              </Link>
+
+              {/* Orders Management */}
+              <Link
+                href="/admin/orders"
+                className="group relative flex flex-col items-center gap-1.5 bg-gradient-to-br from-blue-500 to-blue-600 text-white p-2.5 rounded-lg font-semibold text-xs md:text-sm hover:from-blue-400 hover:to-blue-500 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 shadow-sm"
+              >
+                <span className="text-lg md:text-lg">📋</span>
+                <span className="text-center leading-tight text-xs md:text-xs">
+                  Gérer les
+                  <br />
+                  commandes
+                </span>
+                <div className="absolute inset-0 bg-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+              </Link>
+
+              {/* Categories Management */}
+              <Link
+                href="/admin/categories"
+                className="group relative flex flex-col items-center gap-1.5 bg-gradient-to-br from-purple-500 to-purple-600 text-white p-2.5 rounded-lg font-semibold text-xs md:text-sm hover:from-purple-400 hover:to-purple-500 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 shadow-sm"
+              >
+                <span className="text-lg md:text-lg">🏷️</span>
+                <span className="text-center leading-tight text-xs md:text-xs">
+                  Gérer les
+                  <br />
+                  catégories
+                </span>
+                <div className="absolute inset-0 bg-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+              </Link>
+
+              {/* Coupons & Promo */}
+              <Link
+                href="/admin/coupons"
+                className="group relative flex flex-col items-center gap-1.5 bg-gradient-to-br from-amber-500 to-orange-500 text-white p-2.5 rounded-lg font-semibold text-xs md:text-sm hover:from-amber-400 hover:to-orange-400 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 shadow-sm"
+              >
+                <span className="text-lg md:text-lg">🎫</span>
+                <span className="text-center leading-tight text-xs md:text-xs">
+                  Codes
+                  <br />
+                  promo
+                </span>
+                <div className="absolute inset-0 bg-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters & Search - Sticky on Desktop */}
         {!loading && products.length > 0 && (
-          <div className="bg-white rounded-lg border border-neutral-200 p-6 mb-6">
-
+          <div className="md:sticky md:top-16 md:z-10 bg-white rounded-xl border border-neutral-200 p-6 mb-6 md:bg-white/95 md:backdrop-blur-sm md:shadow-sm">
             <div className="grid grid-cols-1 lg:grid-cols-8 gap-4 mb-4">
               {/* Search */}
               <div className="lg:col-span-2">
@@ -375,7 +590,7 @@ export default function AdminDashboard() {
                     type="text"
                     placeholder="Nom, catégorie..."
                     value={filters.search}
-                    onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                    onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
                     className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg bg-white text-neutral-900 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500"
                   />
                 </div>
@@ -386,12 +601,14 @@ export default function AdminDashboard() {
                 <label className="block text-sm font-medium text-neutral-700 mb-2">Catégorie</label>
                 <select
                   value={filters.category}
-                  onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, category: e.target.value }))}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500"
                 >
                   <option value="all">Toutes les catégories</option>
-                  {categories.map(category => (
-                    <option key={category} value={category}>{category}</option>
+                  {categories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -401,7 +618,7 @@ export default function AdminDashboard() {
                 <label className="block text-sm font-medium text-neutral-700 mb-2">Prix</label>
                 <select
                   value={filters.priceRange}
-                  onChange={(e) => setFilters(prev => ({ ...prev, priceRange: e.target.value }))}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, priceRange: e.target.value }))}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500"
                 >
                   <option value="all">Tous</option>
@@ -417,7 +634,7 @@ export default function AdminDashboard() {
                 <label className="block text-sm font-medium text-neutral-700 mb-2">Stock</label>
                 <select
                   value={filters.stockStatus}
-                  onChange={(e) => setFilters(prev => ({ ...prev, stockStatus: e.target.value }))}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, stockStatus: e.target.value }))}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500"
                 >
                   <option value="all">Tous</option>
@@ -432,7 +649,7 @@ export default function AdminDashboard() {
                 <label className="block text-sm font-medium text-neutral-700 mb-2">Badge</label>
                 <select
                   value={filters.badge}
-                  onChange={(e) => setFilters(prev => ({ ...prev, badge: e.target.value }))}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, badge: e.target.value }))}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500"
                 >
                   <option value="all">Tous</option>
@@ -448,7 +665,7 @@ export default function AdminDashboard() {
                 <label className="block text-sm font-medium text-neutral-700 mb-2">Statut</label>
                 <select
                   value={filters.status}
-                  onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500"
                 >
                   <option value="all">Tous</option>
@@ -468,21 +685,36 @@ export default function AdminDashboard() {
                   <option value="recent">Plus récents</option>
                   <option value="price_low">Prix croissant</option>
                   <option value="price_high">Prix décroissant</option>
-                  <option value="stock_first">En stock d'abord</option>
+                  <option value="stock_first">En stock d&apos;abord</option>
                 </select>
               </div>
             </div>
 
-            {/* Active filters and clear button */}
-            {(filters.search || filters.category !== 'all' || filters.priceRange !== 'all' || filters.status !== 'all' || filters.stockStatus !== 'all' || filters.badge !== 'all') && (
+            {(filters.search ||
+              filters.category !== "all" ||
+              filters.priceRange !== "all" ||
+              filters.status !== "all" ||
+              filters.stockStatus !== "all" ||
+              filters.badge !== "all") && (
               <div className="flex items-center justify-between mt-4 pt-4 border-t border-neutral-200">
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-neutral-600">
-                    {filteredProducts.length} produit{filteredProducts.length > 1 ? 's' : ''} trouvé{filteredProducts.length > 1 ? 's' : ''}
+                    {filteredProducts.length} produit
+                    {filteredProducts.length > 1 ? "s" : ""} trouvé
+                    {filteredProducts.length > 1 ? "s" : ""}
                   </span>
                 </div>
                 <button
-                  onClick={() => setFilters({ search: '', category: 'all', priceRange: 'all', status: 'all', stockStatus: 'all', badge: 'all' })}
+                  onClick={() =>
+                    setFilters({
+                      search: "",
+                      category: "all",
+                      priceRange: "all",
+                      status: "all",
+                      stockStatus: "all",
+                      badge: "all",
+                    })
+                  }
                   className="px-3 py-1 text-sm text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded transition"
                 >
                   Réinitialiser les filtres
@@ -493,7 +725,7 @@ export default function AdminDashboard() {
         )}
 
         {/* Products List */}
-        <div className="bg-white rounded-lg border border-neutral-200">
+        <div className="bg-white rounded-xl border border-neutral-200 shadow-sm">
           <div className="px-6 py-4 border-b border-neutral-200">
             <h2 className="text-lg font-semibold text-neutral-900">
               Gestion des produits
@@ -532,9 +764,12 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody>
                   {paginatedProducts.map((product, index) => (
-                    <tr key={product.id} className={`border-b border-gray-100 hover:bg-neutral-50 transition ${
-                      index % 2 === 1 ? 'bg-gray-50/50' : ''
-                    }`}>
+                    <tr
+                      key={product.id}
+                      className={`border-b border-gray-100 hover:bg-neutral-50 transition ${
+                        index % 2 === 1 ? "bg-gray-50/50" : ""
+                      }`}
+                    >
                       <td className="px-8 py-6 text-sm text-neutral-900 font-medium">
                         <div className="min-h-[52px]">
                           <div className="flex items-center gap-3 mb-1">
@@ -555,14 +790,18 @@ export default function AdminDashboard() {
                       <td className="px-8 py-6 text-sm text-neutral-600">
                         {product.category}
                         {product.subcategory && (
-                          <span className="text-neutral-400"> / {
-                            Array.isArray(product.subcategory)
-                              ? product.subcategory.join(', ')
-                              : product.subcategory
-                          }</span>
+                          <span className="text-neutral-400">
+                            {" "}
+                            /{" "}
+                            {Array.isArray(product.subcategory)
+                              ? product.subcategory.join(", ")
+                              : product.subcategory}
+                          </span>
                         )}
                       </td>
-                      <td className="px-8 py-6 text-sm font-semibold text-neutral-900">{product.price.toFixed(2)} DT</td>
+                      <td className="px-8 py-6 text-sm font-semibold text-neutral-900">
+                        {product.price.toFixed(2)} DT
+                      </td>
                       <td className="px-8 py-6 text-center text-sm">
                         {(() => {
                           const stockStatus = getStockStatus(getTotalStock(product))
@@ -573,12 +812,8 @@ export default function AdminDashboard() {
                           )
                         })()}
                       </td>
-                      <td className="px-8 py-6 text-sm text-neutral-600">
-                        {getVariantsInfo(product)}
-                      </td>
-                      <td className="px-8 py-6 text-sm font-mono text-neutral-600">
-                        {product.sku || '-'}
-                      </td>
+                      <td className="px-8 py-6 text-sm text-neutral-600">{getVariantsInfo(product)}</td>
+                      <td className="px-8 py-6 text-sm font-mono text-neutral-600">{product.sku || "-"}</td>
                       <td className="px-8 py-6 text-sm">
                         {product.badge && (
                           <span
@@ -590,7 +825,11 @@ export default function AdminDashboard() {
                                 : "bg-green-100 text-green-800"
                             }`}
                           >
-                            {product.badge === "new" ? "Nouveau" : product.badge === "top_sale" ? "Top vente" : "Promo"}
+                            {product.badge === "new"
+                              ? "Nouveau"
+                              : product.badge === "top_sale"
+                              ? "Top vente"
+                              : "Promo"}
                           </span>
                         )}
                       </td>
@@ -651,9 +890,9 @@ export default function AdminDashboard() {
                 Confirmer la suppression
               </DialogTitle>
               <DialogDescription>
-                Êtes-vous sûr de vouloir supprimer le produit <strong>"{productToDelete?.name}"</strong> ?
-                Cette action est <strong>irréversible</strong> et supprimera définitivement le produit
-                ainsi que toutes les données associées.
+                Êtes-vous sûr de vouloir supprimer le produit <strong>"{productToDelete?.name}"</strong> ? Cette action
+                est <strong>irréversible</strong> et supprimera définitivement le produit ainsi que toutes les données
+                associées.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -675,7 +914,7 @@ export default function AdminDashboard() {
                     Supprimant...
                   </>
                 ) : (
-                  'Supprimer définitivement'
+                  "Supprimer définitivement"
                 )}
               </button>
             </DialogFooter>
