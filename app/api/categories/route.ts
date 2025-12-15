@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase-admin"
 import { createClient } from "@/lib/supabase-server"
 import { NextResponse } from "next/server"
 
-// GET - Récupérer toutes les catégories
+// GET - Récupérer toutes les catégories avec comptage produits
 export async function GET() {
   try {
     const adminClient = createAdminClient()
@@ -13,7 +13,55 @@ export async function GET() {
 
     if (error) throw error
 
-    return NextResponse.json(categories || [])
+    // Ajouter le comptage récursif des produits pour chaque catégorie
+    const categoriesWithCounts = await Promise.all(
+      categories.map(async (category) => {
+        let totalCount = 0
+
+        // Compter les produits directs dans cette catégorie
+        const { count: directCount, error: directError } = await adminClient
+          .from("products")
+          .select("*", { count: "exact", head: true })
+          .eq("category_id", category.id)
+
+        if (directError) {
+          console.error("Error counting direct products for category", category.id, directError)
+        } else {
+          totalCount += directCount || 0
+        }
+
+        // Compter les produits dans les sous-catégories (niveau 2)
+        const { count: subcategoryCount, error: subError } = await adminClient
+          .from("products")
+          .select("*", { count: "exact", head: true })
+          .eq("subcategory_id", category.id)
+
+        if (subError) {
+          console.error("Error counting subcategory products for category", category.id, subError)
+        } else {
+          totalCount += subcategoryCount || 0
+        }
+
+        // Compter les produits dans les sous-sous-catégories (niveau 3)
+        const { count: subsubcategoryCount, error: subsubError } = await adminClient
+          .from("products")
+          .select("*", { count: "exact", head: true })
+          .eq("subsubcategory_id", category.id)
+
+        if (subsubError) {
+          console.error("Error counting subsubcategory products for category", category.id, subsubError)
+        } else {
+          totalCount += subsubcategoryCount || 0
+        }
+
+        return {
+          ...category,
+          product_count: totalCount
+        }
+      })
+    )
+
+    return NextResponse.json(categoriesWithCounts || [])
   } catch (error) {
     console.error("[v0] Categories fetch error:", error)
     return NextResponse.json({ error: "Failed to fetch categories" }, { status: 500 })

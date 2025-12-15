@@ -18,6 +18,7 @@ export default function NewProductPage() {
     promotional_price: "",
     category: "",
     subcategory: "",
+    subsubcategory: "",
     sku: "",
     badge: "",
     low_stock_threshold: "5",
@@ -189,6 +190,38 @@ export default function NewProductPage() {
         imageUrls = await uploadImages(tempId)
       }
 
+      // Convert category names to IDs for the new foreign key structure
+      let categoryId = null
+      let subcategoryId = null
+      let subsubcategoryId = null
+
+      if (formData.category) {
+        const { data: categoryData } = await supabase
+          .from("categories")
+          .select("id")
+          .eq("name", formData.category)
+          .single()
+        categoryId = categoryData?.id || null
+      }
+
+      if (formData.subcategory) {
+        const { data: subcategoryData } = await supabase
+          .from("categories")
+          .select("id")
+          .eq("name", formData.subcategory)
+          .single()
+        subcategoryId = subcategoryData?.id || null
+      }
+
+      if (formData.subsubcategory) {
+        const { data: subsubcategoryData } = await supabase
+          .from("categories")
+          .select("id")
+          .eq("name", formData.subsubcategory)
+          .single()
+        subsubcategoryId = subsubcategoryData?.id || null
+      }
+
       const { data, error: insertError } = await supabase
         .from("products")
         .insert([
@@ -199,6 +232,10 @@ export default function NewProductPage() {
             promotional_price: formData.promotional_price ? Number.parseFloat(formData.promotional_price) : null,
             category: formData.category,
             subcategory: formData.subcategory || null,
+            subsubcategory: formData.subsubcategory || null,
+            category_id: categoryId,
+            subcategory_id: subcategoryId,
+            subsubcategory_id: subsubcategoryId,
             sku: formData.sku || null,
             badge: formData.badge || null,
             low_stock_threshold: Number.parseInt(formData.low_stock_threshold) || 5,
@@ -304,13 +341,17 @@ export default function NewProductPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-neutral-900 mb-2">Catégorie *</label>
                   <select
                     name="category"
                     value={formData.category}
-                    onChange={handleInputChange}
+                    onChange={(e) => {
+                      handleInputChange(e)
+                      // Reset subcategory and subsubcategory when category changes
+                      setFormData(prev => ({ ...prev, subcategory: "", subsubcategory: "" }))
+                    }}
                     required
                     className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
                   >
@@ -326,16 +367,68 @@ export default function NewProductPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-neutral-900 mb-2">Sous-catégorie</label>
+                  <label className="block text-sm font-medium text-neutral-900 mb-2">
+                    Sous-catégorie
+                    {(() => {
+                      const hasSubcategories = categories.some((cat) => cat.parent_id && categories.find((p) => p.id === cat.parent_id)?.name === formData.category)
+                      return hasSubcategories ? " *" : ""
+                    })()}
+                  </label>
                   <select
                     name="subcategory"
                     value={formData.subcategory}
-                    onChange={handleInputChange}
+                    onChange={(e) => {
+                      handleInputChange(e)
+                      // Reset subsubcategory when subcategory changes
+                      setFormData(prev => ({ ...prev, subsubcategory: "" }))
+                    }}
+                    required={(() => {
+                      const hasSubcategories = categories.some((cat) => cat.parent_id && categories.find((p) => p.id === cat.parent_id)?.name === formData.category)
+                      return hasSubcategories
+                    })()}
                     className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
                   >
-                    <option value="">Aucune</option>
+                    <option value="">
+                      {(() => {
+                        const hasSubcategories = categories.some((cat) => cat.parent_id && categories.find((p) => p.id === cat.parent_id)?.name === formData.category)
+                        return hasSubcategories ? "Sélectionner une sous-catégorie" : "Aucune sous-catégorie disponible"
+                      })()}
+                    </option>
                     {categories
                       .filter((cat) => cat.parent_id && categories.find((p) => p.id === cat.parent_id)?.name === formData.category)
+                      .map((cat) => (
+                        <option key={cat.id} value={cat.name}>
+                          {cat.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-900 mb-2">
+                    Sous-sous-catégorie
+                    {(() => {
+                      const hasSubsubcategories = formData.subcategory && categories.some((cat) => cat.parent_id && categories.find((p) => p.id === cat.parent_id)?.name === formData.subcategory)
+                      return hasSubsubcategories ? " *" : ""
+                    })()}
+                  </label>
+                  <select
+                    name="subsubcategory"
+                    value={formData.subsubcategory}
+                    onChange={handleInputChange}
+                    disabled={!formData.subcategory}
+                    required={!!(formData.subcategory && categories.some((cat) => cat.parent_id && categories.find((p) => p.id === cat.parent_id)?.name === formData.subcategory))}
+                    className="w-full px-4 py-2 border border-neutral-300 rounded-lg disabled:bg-neutral-100 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  >
+                    <option value="">
+                      {(() => {
+                        if (!formData.subcategory) return "Sélectionner d'abord une sous-catégorie"
+                        const hasSubsubcategories = categories.some((cat) => cat.parent_id && categories.find((p) => p.id === cat.parent_id)?.name === formData.subcategory)
+                        return hasSubsubcategories ? "Sélectionner une sous-sous-catégorie" : "Aucune sous-sous-catégorie disponible"
+                      })()}
+                    </option>
+                    {formData.subcategory && categories
+                      .filter((cat) => cat.parent_id && categories.find((p) => p.id === cat.parent_id)?.name === formData.subcategory)
                       .map((cat) => (
                         <option key={cat.id} value={cat.name}>
                           {cat.name}

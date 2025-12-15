@@ -276,19 +276,58 @@ export default function OrdersPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "pending":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800 border-yellow-300"
       case "confirmed":
-        return "bg-blue-100 text-blue-800"
+        return "bg-blue-100 text-blue-800 border-blue-300"
       case "delivered":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800 border-green-300"
       case "cancelled":
-        return "bg-red-100 text-red-800"
+        return "bg-red-50 text-red-600 border-red-200"
       case "returned":
-        return "bg-orange-100 text-orange-800"
+        return "bg-orange-50 text-orange-600 border-orange-200"
       case "confirmed_delivery":
-        return "bg-emerald-100 text-emerald-800"
+        return "bg-emerald-50 text-emerald-600 border-emerald-200"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800 border-gray-300"
+    }
+  }
+
+  const getStatusPriority = (status: string) => {
+    // Retourne la priorité (plus élevé = plus prioritaire)
+    switch (status) {
+      case "pending":
+        return 5 // Très prioritaire - nécessite action immédiate
+      case "confirmed":
+        return 4 // Prioritaire - prêt pour livraison
+      case "delivered":
+        return 3 // Important - en cours de livraison
+      case "returned":
+        return 2 // Moyen - nécessite traitement
+      case "cancelled":
+        return 1 // Faible - terminé négativement
+      case "confirmed_delivery":
+        return 0 // Terminé positivement
+      default:
+        return 0
+    }
+  }
+
+  const getStatusAccent = (status: string) => {
+    switch (status) {
+      case "pending":
+        return "border-l-4 border-l-yellow-400 bg-gradient-to-r from-yellow-50 to-white"
+      case "confirmed":
+        return "border-l-4 border-l-blue-400 bg-gradient-to-r from-blue-50 to-white"
+      case "delivered":
+        return "border-l-4 border-l-green-400 bg-gradient-to-r from-green-50 to-white"
+      case "cancelled":
+        return "border-l-2 border-l-red-300 bg-gradient-to-r from-red-25 to-white"
+      case "returned":
+        return "border-l-2 border-l-orange-300 bg-gradient-to-r from-orange-25 to-white"
+      case "confirmed_delivery":
+        return "border-l-2 border-l-emerald-300 bg-gradient-to-r from-emerald-25 to-white"
+      default:
+        return "border-l-2 border-l-gray-300 bg-white"
     }
   }
 
@@ -649,4 +688,3 @@ export default function OrdersPage() {
     </div>
   )
 }
-

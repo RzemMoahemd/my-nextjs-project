@@ -202,9 +202,24 @@ export default function AdminDashboard() {
       const searchLower = filters.search.toLowerCase()
       const nameMatch = product.name.toLowerCase().includes(searchLower)
       const categoryMatch = product.category.toLowerCase().includes(searchLower)
-      const subcategoryMatch =
-        Array.isArray(product.subcategory) &&
-        product.subcategory.some((sub) => typeof sub === "string" && sub.toLowerCase().includes(searchLower))
+      const subcategoryMatch = (() => {
+        // Vérification de subcategory
+        if (Array.isArray(product.subcategory)) {
+          if (product.subcategory.some((sub: any) => typeof sub === "string" && sub.toLowerCase().includes(searchLower))) {
+            return true
+          }
+        } else if (typeof product.subcategory === "string" && product.subcategory.toLowerCase().includes(searchLower)) {
+          return true
+        }
+
+        // Vérification de subsubcategory avec type assertion
+        const subsubcategory = (product as any).subsubcategory
+        if (typeof subsubcategory === "string" && subsubcategory.toLowerCase().includes(searchLower)) {
+          return true
+        }
+
+        return false
+      })()
       if (!nameMatch && !categoryMatch && !subcategoryMatch) {
         return false
       }
@@ -788,16 +803,24 @@ export default function AdminDashboard() {
                         </div>
                       </td>
                       <td className="px-8 py-6 text-sm text-neutral-600">
-                        {product.category}
-                        {product.subcategory && (
-                          <span className="text-neutral-400">
-                            {" "}
-                            /{" "}
-                            {Array.isArray(product.subcategory)
-                              ? product.subcategory.join(", ")
-                              : product.subcategory}
-                          </span>
-                        )}
+                        {/* Hiérarchie complète avec chevrons élégants */}
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium text-neutral-900">{product.category || 'N/A'}</span>
+                          {product.subcategory && product.subcategory.length > 0 && (
+                            <>
+                              <span className="text-neutral-400 mx-1">›</span>
+                              <span className="text-neutral-700">
+                                {Array.isArray(product.subcategory) ? product.subcategory.join(", ") : product.subcategory}
+                              </span>
+                            </>
+                          )}
+                          {product.subsubcategory && product.subsubcategory.trim() !== '' && (
+                            <>
+                              <span className="text-neutral-400 mx-1">›</span>
+                              <span className="text-neutral-600 font-medium">{product.subsubcategory}</span>
+                            </>
+                          )}
+                        </div>
                       </td>
                       <td className="px-8 py-6 text-sm font-semibold text-neutral-900">
                         {product.price.toFixed(2)} DT

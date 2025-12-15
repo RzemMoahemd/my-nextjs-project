@@ -12,7 +12,8 @@ export interface Product {
   price: number
   promotional_price?: number | null
   category: string
-  subcategory?: string[] | null
+  subcategory?: string[] | string | null
+  subsubcategory?: string
   sizes: string[]
   colors?: string[]
   variants: ProductVariant[]
@@ -23,6 +24,9 @@ export interface Product {
   low_stock_threshold?: number
   created_at: string
   updated_at: string
+  category_id?: string
+  subcategory_id?: string
+  subsubcategory_id?: string
 }
 
 export interface Category {

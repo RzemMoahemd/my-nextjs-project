@@ -19,6 +19,8 @@ export function AdminProductsTable({ products, onDeleteClick, isDeleting = false
   const startIndex = (currentPage - 1) * itemsPerPage
   const paginatedProducts = products.slice(startIndex, startIndex + itemsPerPage)
 
+
+
   return (
     <div>
       <div className="overflow-x-auto">
@@ -52,7 +54,21 @@ export function AdminProductsTable({ products, onDeleteClick, isDeleting = false
                     <span className="line-clamp-2 text-sm font-medium text-neutral-900">{product.name}</span>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-sm text-neutral-600">{product.category}</td>
+                <td className="px-6 py-4 text-sm text-neutral-600">
+                  <div className="flex flex-col">
+                    <span className="font-medium">
+                      {/* Affichage forcé de la sous-sous-catégorie si elle existe */}
+                      {product.subsubcategory && product.subsubcategory.trim() !== '' ? (
+                        product.subsubcategory
+                      ) : product.subcategory && product.subcategory.length > 0 ? (
+                        `${product.category || 'N/A'} / ${product.subcategory[0]}`
+                      ) : (
+                        product.category || "N/A"
+                      )}
+                    </span>
+                  </div>
+                </td>
+
                 <td className="px-6 py-4 text-sm font-semibold text-neutral-900">{product.price.toFixed(2)} €</td>
                 <td className="px-6 py-4 text-sm text-neutral-600">{product.sizes.join(", ")}</td>
                 <td className="px-6 py-4 text-sm">
