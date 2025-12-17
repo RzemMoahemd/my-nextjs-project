@@ -112,7 +112,7 @@ export interface Order {
   items: OrderItem[]
   total_amount: number
   delivery_fee: number
-  status: 'pending' | 'confirmed' | 'delivered' | 'cancelled' | 'returned' | 'confirmed_delivery'
+  status: 'pending' | 'confirmed' | 'preparing' | 'in_delivery' | 'delivered' | 'delivery_failed' | 'cancelled' | 'returned' | 'confirmed_delivery'
   inventory_restored?: boolean
   notes?: string
   coupon_code?: string
@@ -121,6 +121,9 @@ export interface Order {
   user_id?: string
   created_at: string
   updated_at: string
+  // Métadonnées pour gestion UNDO annulation
+  cancelled_at?: string
+  can_undo_cancel?: boolean
 }
 
 export interface Coupon {

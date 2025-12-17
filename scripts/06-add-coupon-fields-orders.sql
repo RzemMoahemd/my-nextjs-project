@@ -29,6 +29,13 @@ CREATE INDEX IF NOT EXISTS idx_orders_coupon_code ON orders(coupon_code) WHERE c
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
 
+-- Supprimer l'ancienne contrainte de statut si elle existe
+ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check;
+
+-- Créer la nouvelle contrainte de statut avec tous les statuts autorisés
+ALTER TABLE orders ADD CONSTRAINT orders_status_check
+CHECK (status IN ('pending', 'confirmed', 'preparing', 'in_delivery', 'delivered', 'delivery_failed', 'cancelled', 'returned', 'confirmed_delivery'));
+
 -- Mise à jour des politiques RLS
 -- (Ces commandes sont optionnelles, vérifiez vos politiques existantes)
 
