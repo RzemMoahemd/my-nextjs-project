@@ -101,6 +101,11 @@ export interface OrderItem {
   price: number
 }
 
+export interface ExchangeItems {
+  returned: OrderItem[]
+  new: OrderItem[]
+}
+
 export interface Order {
   id: string
   customer_name: string
@@ -124,6 +129,15 @@ export interface Order {
   // Métadonnées pour gestion UNDO annulation
   cancelled_at?: string
   can_undo_cancel?: boolean
+  // Champs pour les échanges
+  type?: 'order' | 'exchange'
+  parent_order_id?: string
+  exchange_items?: ExchangeItems
+  exchange_returned_amount?: number
+  exchange_new_amount?: number
+  exchange_difference?: number
+  exchange_delivery_fee?: number
+  exchange_stock_restored?: boolean
 }
 
 export interface Coupon {

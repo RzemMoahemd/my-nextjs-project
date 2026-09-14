@@ -8,6 +8,7 @@ import Link from "next/link"
 import { ArrowLeft, Phone, Mail, Package, Check, Truck, X, Clock, RotateCcw, CheckCheck, MoreVertical, Eye, Edit, MessageCircle, Printer, Trash2, Package2, AlertTriangle } from "lucide-react"
 import { useConfirmDialogWithUI } from "@/components/confirm-dialog"
 import { ConfirmDialog } from "@/components/confirm-dialog"
+import { ExchangeModal } from "@/components/exchange-modal"
 import { toast } from "sonner"
 
 export default function OrdersPage() {
@@ -32,6 +33,10 @@ export default function OrdersPage() {
 
   // Articles expansion state
   const [expandedArticles, setExpandedArticles] = useState<Record<string, boolean>>({})
+
+  // Exchange modal state
+  const [exchangeModalOpen, setExchangeModalOpen] = useState(false)
+  const [selectedOrderForExchange, setSelectedOrderForExchange] = useState<Order | null>(null)
 
   const router = useRouter()
   const supabase = createClientComponentClient()
@@ -99,13 +104,54 @@ export default function OrdersPage() {
       const res = await fetch("/api/orders")
       if (!res.ok) throw new Error("Failed to fetch orders")
       const data = await res.json()
-      setOrders(data)
-      setFilteredOrders(data)
+
+      // Grouper les échanges avec leurs commandes parentes
+      const groupedOrders = groupOrdersWithExchanges(data)
+      setOrders(groupedOrders)
+      setFilteredOrders(groupedOrders)
     } catch (error) {
       console.error("[v0] Error fetching orders:", error)
     } finally {
       setLoading(false)
     }
+  }
+
+  // Fonction pour grouper les échanges avec leurs commandes parentes
+  function groupOrdersWithExchanges(orders: Order[]) {
+    const parentOrders: Order[] = []
+    const exchangeOrders: Order[] = []
+
+    // Séparer les commandes normales des échanges
+    orders.forEach(order => {
+      if (order.type === 'exchange') {
+        exchangeOrders.push(order)
+      } else {
+        parentOrders.push(order)
+      }
+    })
+
+    // Créer une liste groupée où les échanges sont placés juste après leur commande parente
+    const groupedOrders: Order[] = []
+
+    parentOrders.forEach(parentOrder => {
+      // Ajouter la commande parente
+      groupedOrders.push(parentOrder)
+
+      // Ajouter tous les échanges de cette commande parente
+      const relatedExchanges = exchangeOrders.filter(exchange =>
+        exchange.parent_order_id === parentOrder.id
+      )
+      groupedOrders.push(...relatedExchanges)
+    })
+
+    // Ajouter les échanges orphelins (sans parent) à la fin
+    const orphanedExchanges = exchangeOrders.filter(exchange =>
+      !exchange.parent_order_id ||
+      !parentOrders.some(parent => parent.id === exchange.parent_order_id)
+    )
+    groupedOrders.push(...orphanedExchanges)
+
+    return groupedOrders
   }
 
   function filterOrders() {
@@ -763,9 +809,27 @@ export default function OrdersPage() {
         ) : (
           <div className="space-y-4">
             {filteredOrders
-              .sort((a, b) => getStatusPriority(b.status) - getStatusPriority(a.status))
-              .map((order) => (
-              <div key={order.id} className={`bg-white rounded-lg shadow-sm border p-6 ${getStatusAccent(order.status)}`}>
+              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+              .map((order, index, array) => {
+                const isExchange = order.type === 'exchange'
+                const previousOrder = isExchange && index > 0 ? array[index - 1] : null
+                const isRelatedExchange = isExchange && previousOrder && previousOrder.id === order.parent_order_id
+
+                return (
+                  <div key={order.id} className={`bg-white rounded-lg shadow-sm border p-6 ${getStatusAccent(order.status)} ${
+                    isExchange ? 'ml-8 relative' : ''
+                  }`}>
+                    {/* Ligne de connexion pour les échanges */}
+                    {isRelatedExchange && (
+                      <div className="absolute -left-8 top-6 w-8 h-0.5 bg-blue-300"></div>
+                    )}
+
+                    {/* Badge d'échange */}
+                    {isExchange && (
+                      <div className="absolute -left-2 top-4 bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md">
+                        ÉCHANGE
+                      </div>
+                    )}
                 <div className="flex justify-between items-start mb-6">
                   <div>
                     <h3 className="text-xl font-bold text-neutral-900 mb-1 tracking-tight">Commande #{order.id.slice(-8).toUpperCase()}</h3>
@@ -862,6 +926,24 @@ export default function OrdersPage() {
                             <Printer size={14} />
                             Imprimer / Exporter
                           </button>
+
+                          {/* Bouton Échanger - seulement pour les commandes livrées */}
+                          {(order.status === "delivered" || order.status === "confirmed_delivery") && !order.parent_order_id && (
+                            <>
+                              <div className="border-t border-neutral-100 my-1"></div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setOpenActionsMenu(null)
+                                  setSelectedOrderForExchange(order)
+                                  setExchangeModalOpen(true)
+                                }}
+                                className="w-full px-3 py-2 text-left text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+                              >
+                                🔄 Échanger
+                              </button>
+                            </>
+                          )}
 
                           {order.status !== "cancelled" && order.status !== "confirmed_delivery" && order.status !== "returned" && (
                             <>
@@ -1170,8 +1252,9 @@ export default function OrdersPage() {
                     </p>
                   )}
                 </div>
-              </div>
-            ))}
+                  </div>
+                )
+              })}
           </div>
         )}
 
@@ -1182,6 +1265,21 @@ export default function OrdersPage() {
           onConfirm={handleConfirmDialog}
           onCancel={handleCancelDialog}
           onClose={handleCloseDialog}
+        />
+
+        {/* Modal d'échange */}
+        <ExchangeModal
+          isOpen={exchangeModalOpen}
+          onClose={() => {
+            setExchangeModalOpen(false)
+            setSelectedOrderForExchange(null)
+          }}
+          order={selectedOrderForExchange}
+          onExchangeCreated={() => {
+            fetchOrders() // Rafraîchir la liste des commandes
+            setExchangeModalOpen(false)
+            setSelectedOrderForExchange(null)
+          }}
         />
       </div>
     </div>

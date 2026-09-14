@@ -91,7 +91,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     // Récupérer la commande actuelle pour validation
     const { data: previousOrder, error: fetchError } = await adminClient
       .from("orders")
-      .select("items,status,inventory_restored,cancelled_at,can_undo_cancel,previous_status")
+      .select("items,status,inventory_restored,cancelled_at,can_undo_cancel,previous_status,type,exchange_items,exchange_stock_restored")
       .eq("id", id)
       .single()
 
@@ -219,6 +219,30 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       inventoryRestored = true
     }
 
+    // Cas 5: Livraison d'un échange (restaurer le stock des produits retournés)
+    // UNIQUEMENT à la livraison et si pas déjà fait
+    if (status === "delivered" && previousOrder.type === "exchange" && !previousOrder.exchange_stock_restored) {
+      console.log("[v0] Restoring inventory for returned items in exchange")
+      const returnedItems = previousOrder.exchange_items?.returned || []
+
+      for (const item of returnedItems) {
+        if (item.product_id && item.size && item.quantity) {
+          const color = item.color || 'Standard'
+          console.log("[v0] Adjusting inventory for returned item:", item.product_id, item.size, color, "+", item.quantity)
+          try {
+            await adjustInventoryQuantity(adminClient, item.product_id, item.size, color, item.quantity)
+          } catch (inventoryError) {
+            console.error("[v0] Inventory adjustment failed for returned item:", inventoryError)
+            // Continue with other items
+          }
+        }
+      }
+
+      // Marquer que le stock des produits retournés a été restauré
+      updateData.exchange_stock_restored = true
+      console.log("[v0] Exchange stock restoration completed")
+    }
+
 
 
     // Cas 4: Finaliser les données de mise à jour
@@ -282,6 +306,165 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   }
 }
 
+// POST - Créer une commande d'échange depuis une commande existante
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params
+    const body = await request.json()
+    const serverClient = await createClient()
+    const adminClient = createAdminClient()
+
+    console.log("[v0] POST /api/orders/[id] - Create exchange for order:", id)
+    console.log("[v0] Request body:", body)
+
+    try {
+      const {
+        data: { user },
+      } = await serverClient.auth.getUser()
+
+      if (!user) {
+        console.log("[v0] No authenticated user")
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      }
+
+      const { data: adminUser } = await serverClient.from("admin_users").select("*").eq("id", user.id).single()
+
+      if (!adminUser) {
+        console.log("[v0] User is not admin")
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
+    } catch (authError) {
+      console.error("[v0] Auth error:", authError)
+      return NextResponse.json({ error: "Authentication failed" }, { status: 401 })
+    }
+
+    const {
+      returned_items: returnedItems,
+      new_items: newItems,
+      notes
+    } = body
+
+    // Validation des données d'entrée
+    if (!Array.isArray(returnedItems) || !Array.isArray(newItems)) {
+      return NextResponse.json({ error: "returned_items et new_items doivent être des tableaux" }, { status: 400 })
+    }
+
+    if (returnedItems.length === 0 && newItems.length === 0) {
+      return NextResponse.json({ error: "Au moins un produit retourné ou nouveau doit être fourni" }, { status: 400 })
+    }
+
+    // Récupérer la commande parente
+    const { data: parentOrder, error: parentError } = await adminClient
+      .from("orders")
+      .select("*")
+      .eq("id", id)
+      .single()
+
+    if (parentError || !parentOrder) {
+      console.error("[v0] Parent order not found:", parentError)
+      return NextResponse.json({ error: "Commande parente introuvable" }, { status: 404 })
+    }
+
+    // Vérifier que la commande parente peut être échangée
+    if (!["delivered", "confirmed_delivery"].includes(parentOrder.status)) {
+      return NextResponse.json({
+        error: "Seules les commandes livrées peuvent être échangées"
+      }, { status: 400 })
+    }
+
+    // Calculer les montants
+    const returnedAmount = returnedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+    const newAmount = newItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+
+    // Différence produits (jamais négative pour éviter les remboursements)
+    const productDifference = Math.max(0, newAmount - returnedAmount)
+
+    // Récupérer les frais de livraison actuels depuis les settings
+    const { data: deliverySettings } = await adminClient
+      .from("settings")
+      .select("value")
+      .eq("key", "delivery_fee")
+      .single()
+
+    const exchangeDeliveryFee = deliverySettings?.value?.amount ? Number(deliverySettings.value.amount) : 7.00
+    const totalAmount = productDifference + exchangeDeliveryFee
+
+    // Préparer les données de l'échange
+    const exchangeData = {
+      type: "exchange",
+      parent_order_id: parentOrder.id,
+      customer_name: parentOrder.customer_name,
+      customer_phone: parentOrder.customer_phone,
+      customer_email: parentOrder.customer_email,
+      address: parentOrder.address,
+      postal_code: parentOrder.postal_code,
+      city: parentOrder.city,
+      items: newItems, // Les nouveaux produits deviennent les items principaux
+      total_amount: totalAmount,
+      delivery_fee: exchangeDeliveryFee,
+      status: "pending",
+      inventory_restored: false,
+      notes: notes || `Échange de la commande ${parentOrder.id.slice(-8).toUpperCase()}`,
+
+      // Données spécifiques à l'échange
+      exchange_items: {
+        returned: returnedItems,
+        new: newItems
+      },
+      exchange_returned_amount: returnedAmount,
+      exchange_new_amount: newAmount,
+      exchange_difference: productDifference,
+      exchange_delivery_fee: exchangeDeliveryFee,
+      exchange_stock_restored: false
+    }
+
+    console.log("[v0] Exchange data to create:", exchangeData)
+
+    // Créer la commande d'échange
+    const { data: exchangeOrder, error: createError } = await adminClient
+      .from("orders")
+      .insert(exchangeData)
+      .select()
+      .single()
+
+    if (createError) {
+      console.error("[v0] Exchange creation error:", createError)
+      return NextResponse.json({ error: "Échec de la création de l'échange" }, { status: 500 })
+    }
+
+    // Gérer le stock : retirer les nouveaux produits
+    if (newItems.length > 0) {
+      console.log("[v0] Adjusting inventory for new exchange items")
+      for (const item of newItems) {
+        if (item.product_id && item.size && item.quantity) {
+          const color = item.color || 'Standard'
+          try {
+            await adjustInventoryQuantity(adminClient, item.product_id, item.size, color, -item.quantity)
+            console.log(`[v0] Stock decreased: ${item.product_id} ${item.size} ${color} -${item.quantity}`)
+          } catch (inventoryError) {
+            console.error("[v0] Inventory adjustment failed for new item:", inventoryError)
+            // Ne pas échouer toute l'opération pour un problème de stock
+          }
+        }
+      }
+    }
+
+    console.log("[v0] Exchange created successfully:", exchangeOrder.id)
+    return NextResponse.json({
+      success: true,
+      exchange_order: exchangeOrder,
+      message: `Échange créé avec succès. Commande #${exchangeOrder.id.slice(-8).toUpperCase()}`
+    })
+
+  } catch (error) {
+    console.error("[v0] Exchange creation error:", error)
+    return NextResponse.json({
+      error: "Échec de la création de l'échange",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 })
+  }
+}
+
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
@@ -305,7 +488,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     // Récupérer la commande avant suppression pour gérer l'inventaire
     const { data: order, error: fetchError } = await adminClient
       .from("orders")
-      .select("items,status,inventory_restored")
+      .select("items,status,inventory_restored,type,exchange_stock_restored")
       .eq("id", id)
       .single()
 
@@ -313,17 +496,38 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       return NextResponse.json({ error: "Order not found" }, { status: 404 })
     }
 
-    // Si la commande n'est pas annulée et l'inventaire n'a pas été restauré, le restaurer
-    if (order.status !== "cancelled" && !order.inventory_restored) {
-      const items = Array.isArray(order.items) ? order.items : []
-      for (const item of items) {
-        if (item.product_id && item.size && item.quantity) {
-          const color = item.color || 'Standard'
-          try {
-            await adjustInventoryQuantity(adminClient, item.product_id, item.size, color, item.quantity)
-          } catch (inventoryError) {
-            console.error("[v0] Inventory adjustment failed on delete:", inventoryError)
-            // Continue with other items but don't fail the entire operation
+    // Gestion différente selon le type de commande
+    if (order.type === "exchange") {
+      // Pour les échanges, gérer le stock des nouveaux produits et des produits retournés
+      if (!order.inventory_restored) {
+        // Restaurer le stock des nouveaux produits (qui étaient réservés)
+        const items = Array.isArray(order.items) ? order.items : []
+        for (const item of items) {
+          if (item.product_id && item.size && item.quantity) {
+            const color = item.color || 'Standard'
+            try {
+              await adjustInventoryQuantity(adminClient, item.product_id, item.size, color, item.quantity)
+            } catch (inventoryError) {
+              console.error("[v0] Inventory adjustment failed on delete:", inventoryError)
+            }
+          }
+        }
+      }
+
+      // Pour les échanges livrés, le stock des produits retournés a déjà été restauré
+      // via exchange_stock_restored, donc rien à faire de plus
+    } else {
+      // Pour les commandes normales, logique existante
+      if (order.status !== "cancelled" && !order.inventory_restored) {
+        const items = Array.isArray(order.items) ? order.items : []
+        for (const item of items) {
+          if (item.product_id && item.size && item.quantity) {
+            const color = item.color || 'Standard'
+            try {
+              await adjustInventoryQuantity(adminClient, item.product_id, item.size, color, item.quantity)
+            } catch (inventoryError) {
+              console.error("[v0] Inventory adjustment failed on delete:", inventoryError)
+            }
           }
         }
       }
