@@ -9,10 +9,12 @@ import { useCart } from "@/components/cart-provider"
 import { useToast } from "@/hooks/use-toast"
 import { CouponInput } from "@/components/coupon-input"
 import { X } from "lucide-react"
+import { useSettings } from "@/components/settings-provider"
 
 export default function CartPage() {
   const { items, subtotal, coupon, discount, freeShipping, updateQuantity, removeItem, applyCoupon, removeCoupon } = useCart()
   const { toast } = useToast()
+  const { shipping_msg } = useSettings()
   const [deliveryFee, setDeliveryFee] = useState(0)
   const [freeShippingThreshold, setFreeShippingThreshold] = useState(0)
   const [freeShippingEnabled, setFreeShippingEnabled] = useState(false)
@@ -204,6 +206,14 @@ export default function CartPage() {
                   {!hasFreeShippingFromCoupon && freeShippingEnabled && subtotal < freeShippingThreshold && freeShippingThreshold > 0 && (
                     <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
                       Plus que {(freeShippingThreshold - subtotalAfterDiscount).toFixed(2)} DT pour la livraison gratuite !
+                    </div>
+                  )}
+
+                  {/* Délai de livraison + politique de retour */}
+                  {(shipping_msg?.delay || shipping_msg?.return_policy) && (
+                    <div className="text-sm text-neutral-600 bg-neutral-50 p-3 rounded space-y-1">
+                      {shipping_msg?.delay && <p>🚚 Livraison en {shipping_msg.delay}</p>}
+                      {shipping_msg?.return_policy && <p>↩️ {shipping_msg.return_policy}</p>}
                     </div>
                   )}
 

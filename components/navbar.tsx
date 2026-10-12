@@ -1,11 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Menu, ShoppingBag, X, User, LogOut, ChevronDown } from "lucide-react"
 import { useCart } from "@/components/cart-provider"
 import { createClientComponentClient } from "@/lib/supabase-client"
 import { useRouter } from "next/navigation"
+import { useSettings } from "@/components/settings-provider"
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
@@ -24,6 +25,7 @@ export function Navbar() {
   const { itemCount, clearCart } = useCart()
   const supabase = createClientComponentClient()
   const router = useRouter()
+  const { store_info } = useSettings()
 
   useEffect(() => {
     async function checkUser() {
@@ -61,32 +63,38 @@ export function Navbar() {
 
   const handleProductsHover = () => {
     if (!showProductsDropdown) {
+      updateNavbarPosition()
       setShowProductsDropdown(true)
       loadProductsDropdown()
     }
   }
 
-  const [navbarTop, setNavbarTop] = useState(64) // Hauteur par défaut
+  // Position réelle du bas du navbar.
+  // La bannière "livraison gratuite" est AU-DESSUS du navbar et défile
+  // normalement (elle disparaît au scroll) : le bas de la barre remonte,
+  // il faut donc suivre sa position en permanence, pas juste à l'ouverture.
+  const [navbarTop, setNavbarTop] = useState(64)
+  const navRef = useRef<HTMLElement | null>(null)
+
+  const updateNavbarPosition = () => {
+    const navbar = navRef.current ?? document.querySelector("nav")
+    if (navbar) {
+      setNavbarTop(navbar.getBoundingClientRect().bottom)
+    }
+  }
 
   useEffect(() => {
-    // Calculer la position réelle du navbar au premier rendu
-    const updateNavbarPosition = () => {
-      const navbar = document.querySelector('nav')
-      if (navbar) {
-        const rect = navbar.getBoundingClientRect()
-        const top = rect.bottom // Position du bas du navbar
-        setNavbarTop(top)
-      }
-    }
-
     updateNavbarPosition()
-
-    // Recalculer si la fenêtre change de taille
-    const handleResize = () => updateNavbarPosition()
-    window.addEventListener('resize', handleResize)
-
-    return () => window.removeEventListener('resize', handleResize)
+    // Suivi en continu : resize ET scroll
+    const reposition = () => updateNavbarPosition()
+    window.addEventListener("resize", reposition)
+    window.addEventListener("scroll", reposition, { passive: true })
+    return () => {
+      window.removeEventListener("resize", reposition)
+      window.removeEventListener("scroll", reposition)
+    }
   }, [])
+
 
   const handleProductsLeave = () => {
     // Délai pour permettre la navigation vers le dropdown
@@ -112,12 +120,23 @@ export function Navbar() {
   }
 
   return (
-    <nav className="sticky top-0 z-50 bg-white border-b border-neutral-200">
+    <nav ref={navRef} className="sticky top-0 z-50 bg-white border-b border-neutral-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link href="/" className="font-bold text-xl text-neutral-900">
-            ELEGANCE
+          <Link href="/" className="flex items-center gap-2">
+            {store_info.logo_url ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={store_info.logo_url}
+                alt={store_info.name || "Logo"}
+                className="h-9 w-auto max-w-[160px] object-contain"
+              />
+            ) : (
+              <span className="font-bold text-xl text-neutral-900">
+                {store_info.name || "ELEGANCE"}
+              </span>
+            )}
           </Link>
 
           {/* Desktop Menu */}
@@ -141,7 +160,7 @@ export function Navbar() {
                 <div
                   className="fixed left-0 right-0 bg-white border-t border-neutral-200 shadow-lg z-50"
                   style={{
-                    top: '64px', // Sous le navbar (64px hauteur navbar)
+                    top: navbarTop, // Recalculé sous bannière + navbar (plus de 64px en dur)
                     height: '400px' // Hauteur complète
                   }}
                   onMouseEnter={handleDropdownEnter}

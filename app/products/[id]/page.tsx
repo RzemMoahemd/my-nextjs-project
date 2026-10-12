@@ -11,6 +11,7 @@ import { useCart } from "@/components/cart-provider"
 import { useToast } from "@/hooks/use-toast"
 import { useFavorites } from "@/hooks/use-favorites"
 import { createClientComponentClient } from "@/lib/supabase-client"
+import { useSettings } from "@/components/settings-provider"
 
 export default function ProductDetail() {
   const params = useParams()
@@ -26,6 +27,7 @@ export default function ProductDetail() {
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
   const [user, setUser] = useState<any>(null)
   const favorite = isFavorite(params.id as string)
+  const { shipping_msg } = useSettings()
 
   useEffect(() => {
     fetchProduct()
@@ -427,6 +429,14 @@ export default function ProductDetail() {
                   <p className="font-semibold">Actuellement indisponible</p>
                 )}
               </div>
+
+              {/* Livraison & Retours */}
+              {(shipping_msg?.delay || shipping_msg?.return_policy) && (
+                <div className="p-4 bg-neutral-50 rounded-lg text-sm text-neutral-700 space-y-1.5">
+                  {shipping_msg?.delay && <p>🚚 Livraison en {shipping_msg.delay}</p>}
+                  {shipping_msg?.return_policy && <p>↩️ {shipping_msg.return_policy}</p>}
+                </div>
+              )}
 
               {product.is_active && availableQuantity > 0 ? (
                 <>
