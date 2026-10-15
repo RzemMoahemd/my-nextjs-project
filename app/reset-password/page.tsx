@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { createClientComponentClient } from "@/lib/supabase-client"
 import { useToast } from "@/hooks/use-toast"
+import { useSettings } from "@/components/settings-provider"
 
 function ResetPasswordForm() {
   const [password, setPassword] = useState("")
@@ -15,6 +16,7 @@ function ResetPasswordForm() {
   const searchParams = useSearchParams()
   const { toast } = useToast()
   const supabase = createClientComponentClient()
+  const { appearance } = useSettings()
 
   useEffect(() => {
     const checkToken = async () => {
@@ -103,7 +105,7 @@ function ResetPasswordForm() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neutral-900 mx-auto mb-4" />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-primary)] mx-auto mb-4" />
           <p className="text-neutral-600">Vérification du lien...</p>
         </div>
       </div>
@@ -140,7 +142,7 @@ function ResetPasswordForm() {
           <div className="space-y-4">
             <Link
               href="/forgot-password"
-              className="block w-full px-4 py-2 bg-neutral-900 text-white rounded-lg font-semibold hover:bg-neutral-800 transition text-center"
+              className="block w-full px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition text-center"
             >
               Demander un nouveau lien
             </Link>
@@ -206,7 +208,8 @@ function ResetPasswordForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-neutral-900 text-white py-3 rounded-lg font-semibold hover:bg-neutral-800 transition disabled:opacity-50"
+            className="w-full text-white py-3 rounded-lg font-semibold hover:opacity-90 transition disabled:opacity-50"
+            style={{ backgroundColor: appearance?.primary_color || "#171717" }}
           >
             {loading ? "Mise à jour..." : "Mettre à jour le mot de passe"}
           </button>
@@ -230,7 +233,7 @@ export default function ResetPasswordPage() {
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-neutral-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neutral-900 mx-auto mb-4" />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-primary)] mx-auto mb-4" />
           <p className="text-neutral-600">Chargement...</p>
         </div>
       </div>

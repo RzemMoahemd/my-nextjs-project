@@ -4,13 +4,14 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { createClientComponentClient } from "@/lib/supabase-client"
 import Link from "next/link"
 import { ChevronLeft } from "lucide-react"
+import { useCurrency } from "@/components/settings-provider"
 
 export default function NewProductPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const currency = useCurrency()
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -21,7 +22,7 @@ export default function NewProductPage() {
     subsubcategory: "",
     sku: "",
     badge: "",
-    low_stock_threshold: "5",
+    low_stock_threshold: "",
     is_active: true,
   })
   const [sizes, setSizes] = useState<string[]>([])
@@ -66,7 +67,6 @@ export default function NewProductPage() {
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [categories, setCategories] = useState<any[]>([])
   const router = useRouter()
-  const supabase = createClientComponentClient()
 
   useEffect(() => {
     fetchCategories()
@@ -154,107 +154,54 @@ export default function NewProductPage() {
     setImagePreviews(previews)
   }
 
-  async function uploadImages(productId: string) {
-    const uploadedUrls: string[] = []
-
-    for (const file of images) {
-      const filename = `${productId}/${Date.now()}-${file.name}`
-
-      const { data, error } = await supabase.storage.from("products").upload(filename, file)
-
-      if (error) {
-        console.error("[v0] Upload error:", error)
-        throw new Error("Erreur lors de l'upload")
-      }
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("products").getPublicUrl(filename)
-
-      uploadedUrls.push(publicUrl)
-    }
-
-    return uploadedUrls
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError("")
 
     try {
-      // Upload images first
-      let imageUrls: string[] = []
-      if (images.length > 0) {
-        const tempId = "temp-" + Date.now()
-        imageUrls = await uploadImages(tempId)
+      // Envoi multipart vers l'API : insert + upload images faits côté serveur
+      // avec le service role (ignore le RLS Supabase qui bloque le navigateur)
+      const payload = new FormData()
+      payload.append(
+        "data",
+        JSON.stringify({
+          name: formData.name,
+          description: formData.description,
+          price: formData.price,
+          promotional_price: formData.promotional_price,
+          category: formData.category,
+          subcategory: formData.subcategory,
+          subsubcategory: formData.subsubcategory,
+          sku: formData.sku,
+          badge: formData.badge,
+          low_stock_threshold:
+            formData.low_stock_threshold === "" ? null : Number.parseInt(formData.low_stock_threshold, 10),
+          sizes,
+          colors,
+          variants,
+          is_active: formData.is_active,
+        }),
+      )
+      for (const file of images) {
+        payload.append("files", file)
       }
 
-      // Convert category names to IDs for the new foreign key structure
-      let categoryId = null
-      let subcategoryId = null
-      let subsubcategoryId = null
+      const res = await fetch("/api/products/create", {
+        method: "POST",
+        body: payload,
+      })
 
-      if (formData.category) {
-        const { data: categoryData } = await supabase
-          .from("categories")
-          .select("id")
-          .eq("name", formData.category)
-          .single()
-        categoryId = categoryData?.id || null
+      if (!res.ok) {
+        const detail = await res.json().catch(() => null)
+        throw new Error(detail?.error || `Erreur ${res.status}`)
       }
-
-      if (formData.subcategory) {
-        const { data: subcategoryData } = await supabase
-          .from("categories")
-          .select("id")
-          .eq("name", formData.subcategory)
-          .single()
-        subcategoryId = subcategoryData?.id || null
-      }
-
-      if (formData.subsubcategory) {
-        const { data: subsubcategoryData } = await supabase
-          .from("categories")
-          .select("id")
-          .eq("name", formData.subsubcategory)
-          .single()
-        subsubcategoryId = subsubcategoryData?.id || null
-      }
-
-      const { data, error: insertError } = await supabase
-        .from("products")
-        .insert([
-          {
-            name: formData.name,
-            description: formData.description,
-            price: Number.parseFloat(formData.price),
-            promotional_price: formData.promotional_price ? Number.parseFloat(formData.promotional_price) : null,
-            category: formData.category,
-            subcategory: formData.subcategory || null,
-            subsubcategory: formData.subsubcategory || null,
-            category_id: categoryId,
-            subcategory_id: subcategoryId,
-            subsubcategory_id: subsubcategoryId,
-            sku: formData.sku || null,
-            badge: formData.badge || null,
-            low_stock_threshold: Number.parseInt(formData.low_stock_threshold) || 5,
-            sizes,
-            colors,
-            variants,
-            images: imageUrls,
-            is_active: formData.is_active,
-          },
-        ])
-        .select()
-
-      if (insertError) throw insertError
 
       router.push("/admin/dashboard")
       router.refresh()
     } catch (err) {
       console.error("[v0] Error:", err)
-      setError("Erreur lors de la création du produit")
+      setError(err instanceof Error ? err.message : "Erreur lors de la création du produit")
     } finally {
       setLoading(false)
     }
@@ -313,7 +260,7 @@ export default function NewProductPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-900 mb-2">Prix initial (€)</label>
+                  <label className="block text-sm font-medium text-neutral-900 mb-2">Prix initial ({currency})</label>
                   <input
                     type="number"
                     name="price"
@@ -327,7 +274,7 @@ export default function NewProductPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-neutral-900 mb-2">Prix promotionnel (€)</label>
+                  <label className="block text-sm font-medium text-neutral-900 mb-2">Prix promotionnel ({currency})</label>
                   <input
                     type="number"
                     name="promotional_price"
@@ -479,7 +426,7 @@ export default function NewProductPage() {
                   className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
                   placeholder="5"
                 />
-                <p className="text-xs text-neutral-500 mt-1">Vous serez notifié quand le stock descend à ce niveau</p>
+                <p className="text-xs text-neutral-500 mt-1">Laissez vide pour utiliser le seuil global (Paramètres → Vente). Vous serez notifié quand le stock descend à ce niveau.</p>
               </div>
 
               <div>
@@ -511,15 +458,15 @@ export default function NewProductPage() {
                           {/* Symbole X barré */}
                           <div className="w-6 h-6 flex items-center justify-center">
                             <div className={`w-4 h-0.5 rounded transition-colors ${
-                              isSelected ? 'bg-red-600' : 'bg-neutral-500'
+                              isSelected ? 'bg-[var(--color-danger)]' : 'bg-neutral-500'
                             }`} style={{ transform: 'rotate(45deg) translateY(0)' }} />
                             <div className={`w-4 h-0.5 rounded transition-colors ${
-                              isSelected ? 'bg-red-600' : 'bg-neutral-500'
+                              isSelected ? 'bg-[var(--color-danger)]' : 'bg-neutral-500'
                             }`} style={{ transform: 'rotate(-45deg) translateY(0)' }} />
                           </div>
 
                           {/* Tooltip */}
-                          <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-neutral-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                          <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-[var(--color-primary)] text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
                             {colorData.displayName || colorData.name}
                             {isSelected && ' ✓'}
                           </div>
@@ -531,7 +478,7 @@ export default function NewProductPage() {
                           onClick={() => toggleColor(colorData.name)}
                           className={`relative group w-12 h-12 rounded-full border-2 transition-all duration-200 ${
                             isSelected
-                              ? 'border-neutral-900 scale-110 shadow-lg'
+                              ? 'border-[var(--color-primary)] scale-110 shadow-lg'
                               : 'border-neutral-300 hover:border-neutral-400 hover:scale-105'
                           }`}
                           title={colorData.name}
@@ -547,12 +494,12 @@ export default function NewProductPage() {
                           {/* Indicateur de sélection pour couleurs claires */}
                           {isSelected && colorData.hex === '#FFFFFF' && (
                             <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="w-3 h-3 bg-neutral-900 rounded-full"></div>
+                              <div className="w-3 h-3 bg-[var(--color-primary)] rounded-full"></div>
                             </div>
                           )}
 
                           {/* Tooltip */}
-                          <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-neutral-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                          <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-[var(--color-primary)] text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
                             {colorData.displayName || colorData.name}
                             {isSelected && ' ✓'}
                           </div>
@@ -579,8 +526,8 @@ export default function NewProductPage() {
                               className="inline-flex items-center gap-2 px-3 py-1 bg-white border border-red-400 rounded-full"
                             >
                               <div className="w-4 h-4 rounded-full border-2 border-red-500 flex items-center justify-center bg-red-50">
-                                <div className="w-2 h-0.5 bg-red-600 rounded" style={{ transform: 'rotate(45deg) translateY(0)' }} />
-                                <div className="w-2 h-0.5 bg-red-600 rounded" style={{ transform: 'rotate(-45deg) translateY(0)' }} />
+                                <div className="w-2 h-0.5 bg-[var(--color-danger)] rounded" style={{ transform: 'rotate(45deg) translateY(0)' }} />
+                                <div className="w-2 h-0.5 bg-[var(--color-danger)] rounded" style={{ transform: 'rotate(-45deg) translateY(0)' }} />
                               </div>
                               <span className="text-sm font-medium text-red-700">{colorData.displayName || colorName}</span>
                               <button
@@ -649,7 +596,7 @@ export default function NewProductPage() {
                   <button
                     type="button"
                     onClick={addSize}
-                    className="px-4 py-2 bg-neutral-900 text-white rounded-lg font-semibold hover:bg-neutral-800 transition"
+                    className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition"
                   >
                     Ajouter
                   </button>
@@ -718,7 +665,7 @@ export default function NewProductPage() {
                             addVariant('aucune_couleur', sizeSelect.value)
                           }
                         }}
-                        className="px-4 py-2 bg-neutral-900 text-white rounded-lg font-semibold hover:bg-neutral-800 transition"
+                        className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition"
                       >
                         Ajouter variante
                       </button>
@@ -825,13 +772,13 @@ export default function NewProductPage() {
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 bg-neutral-900 text-white py-3 rounded-lg font-semibold hover:bg-neutral-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 bg-[var(--color-primary)] text-white py-3 rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Création..." : "Créer le produit"}
             </button>
             <Link
               href="/admin/dashboard"
-              className="px-6 py-3 border-2 border-neutral-300 text-neutral-900 rounded-lg font-semibold hover:border-neutral-900 transition"
+              className="px-6 py-3 border-2 border-neutral-300 text-neutral-900 rounded-lg font-semibold hover:border-[var(--color-primary)] transition"
             >
               Annuler
             </Link>

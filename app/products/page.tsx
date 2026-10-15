@@ -9,10 +9,12 @@ import { SubcategoryFilter } from "@/components/subcategory-filter"
 import { Pagination } from "@/components/ui/pagination"
 import type { Product } from "@/lib/types"
 import { Search, Filter, X, AlertCircle, ChevronDown, Check } from "lucide-react"
+import { useCurrency } from "@/components/settings-provider"
 
 export default function ProductsPage() {
   const searchParams = useSearchParams()
   const categoryParam = searchParams.get('category')
+  const currency = useCurrency()
   
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
@@ -22,6 +24,9 @@ export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(categoryParam)
   const [selectedSize, setSelectedSize] = useState<string | null>(null)
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000])
+  // Le filtre prix ne s'applique que si l'utilisateur déplace le slider :
+  // sinon les produits plus chers que la valeur initiale (1000) sont masqués
+  const [priceFilterActive, setPriceFilterActive] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null)
 
@@ -132,6 +137,9 @@ export default function ProductsPage() {
     }
   }
 
+  // Borne max dynamique : couvre tous les produits (un prix > 1000 ne doit pas être exclu)
+  const maxPrice = Math.max(1000, ...products.map((p) => Number(p.price) || 0))
+
   useEffect(() => {
     let filtered = products
 
@@ -161,8 +169,10 @@ export default function ProductsPage() {
       filtered = filtered.filter((p) => p.sizes.includes(selectedSize))
     }
 
-    // Price filter
-    filtered = filtered.filter((p) => p.price >= priceRange[0] && p.price <= priceRange[1])
+    // Price filter (uniquement si l'utilisateur a déplacé le slider)
+    if (priceFilterActive) {
+      filtered = filtered.filter((p) => p.price >= priceRange[0] && p.price <= priceRange[1])
+    }
 
     // Availability filter
     if (availabilityFilters.inStock || availabilityFilters.outOfStock) {
@@ -191,7 +201,7 @@ export default function ProductsPage() {
     setFilteredProducts(filtered)
     // Réinitialiser à la page 1 quand les filtres changent
     setCurrentPage(1)
-  }, [searchTerm, selectedCategory, selectedSize, priceRange, selectedSubcategory, availabilityFilters, sortOption, products])
+  }, [searchTerm, selectedCategory, selectedSize, priceRange, priceFilterActive, selectedSubcategory, availabilityFilters, sortOption, products])
 
   // Calculer les produits à afficher pour la page actuelle
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage)
@@ -581,14 +591,17 @@ export default function ProductsPage() {
                 {/* Price Filter */}
                 <div>
                   <label className="block text-sm font-semibold text-neutral-900 mb-3">
-                    Prix: {priceRange[0]}€ - {priceRange[1]}€
+                    Prix: {priceFilterActive ? priceRange[0] : 0}{currency} - {priceFilterActive ? priceRange[1] : maxPrice}{currency}
                   </label>
                   <input
                     type="range"
                     min="0"
-                    max="1000"
-                    value={priceRange[1]}
-                    onChange={(e) => setPriceRange([priceRange[0], Number.parseInt(e.target.value)])}
+                    max={maxPrice}
+                    value={priceFilterActive ? priceRange[1] : maxPrice}
+                    onChange={(e) => {
+                      setPriceFilterActive(true)
+                      setPriceRange([priceRange[0], Number.parseInt(e.target.value)])
+                    }}
                     className="w-full"
                   />
                 </div>
@@ -626,7 +639,7 @@ export default function ProductsPage() {
                   <p className="text-neutral-600 text-lg mb-4">{error}</p>
                   <button
                     onClick={fetchProducts}
-                    className="px-6 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition"
+                    className="px-6 py-2 bg-[var(--color-primary)] text-white rounded-lg hover:bg-[var(--color-primary-dark)] transition"
                   >
                     Réessayer
                   </button>

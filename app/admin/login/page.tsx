@@ -54,7 +54,7 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-900 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[var(--color-primary)] flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-lg shadow-lg p-8">
           <h1 className="text-3xl font-bold text-neutral-900 mb-2 text-center">ELEGANCE</h1>
@@ -94,7 +94,7 @@ export default function AdminLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-neutral-900 text-white py-2 rounded-lg font-semibold hover:bg-neutral-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[var(--color-primary)] text-white py-2 rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Connexion..." : "Se connecter"}
             </button>

@@ -24,12 +24,14 @@ export interface ShippingMsg {
 }
 
 export interface StockConfig {
+  // Seuil des notifications admin (tableau de bord) — cascade produit > global
   low_stock_threshold: number
+  // Seuil d'affichage du message client "Plus que X disponible" sur la fiche produit.
+  // Le message se base sur la variante SÉLECTIONNÉE (couleur + taille), pas le stock total.
+  low_stock_display_threshold: number
 }
 
 export interface TaxConfig {
-  rate: number
-  prices_include_tax: boolean
   currency: string
 }
 
@@ -47,7 +49,10 @@ export interface SeoConfig {
 export interface AppearanceConfig {
   primary_color: string
   secondary_color: string
+  banner_color: string
   accent_color: string
+  success_color: string
+  danger_color: string
   font_family: string
 }
 
@@ -85,8 +90,8 @@ export const DEFAULT_SETTINGS: AllSettings = {
     delay: "2 à 4 jours ouvrés",
     return_policy: "Retours acceptés sous 7 jours",
   },
-  stock: { low_stock_threshold: 5 },
-  tax: { rate: 0, prices_include_tax: true, currency: "DT" },
+  stock: { low_stock_threshold: 5, low_stock_display_threshold: 5 },
+  tax: { currency: "DT" },
   maintenance: {
     enabled: false,
     message: "Notre boutique est temporairement en maintenance. Revenez très bientôt !",
@@ -98,8 +103,11 @@ export const DEFAULT_SETTINGS: AllSettings = {
   },
   appearance: {
     primary_color: "#171717",
-    secondary_color: "#64748B",
+    secondary_color: "#2563EB",
+    banner_color: "#262626",
     accent_color: "#F59E0B",
+    success_color: "#16A34A",
+    danger_color: "#DC2626",
     font_family: "Geist",
   },
   delivery_fee: { amount: 7 },

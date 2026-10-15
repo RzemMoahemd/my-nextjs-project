@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import Image from "next/image"
 import Link from "next/link"
@@ -11,6 +11,8 @@ import { useCart } from "@/components/cart-provider"
 import { useToast } from "@/hooks/use-toast"
 import { useFavorites } from "@/hooks/use-favorites"
 import { createClientComponentClient } from "@/lib/supabase-client"
+import { useSettings, useCurrency } from "@/components/settings-provider"
+import { getDisplayThreshold } from "@/lib/low-stock"
 
 interface ProductCardProps {
   product: Product
@@ -261,9 +263,18 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
     }
   }
 
+  const { appearance, stock } = useSettings()
+  const currency = useCurrency()
+
+  // Seuil d'AFFICHAGE du message "Plus que X disponible" sur la carte produit.
+  // Dépend UNIQUEMENT du réglage global (Paramètres > Vente :
+  // stock.low_stock_display_threshold). Le low_stock_threshold de la fiche
+  // produit est ignoré ici — il ne sert qu'aux notifications admin.
+  // Le message se base sur la variante SÉLECTIONNÉE (couleur + taille).
+  const displayThreshold = getDisplayThreshold(stock?.low_stock_display_threshold)
+
   // Gestion des animations d'entrée
   const animationDelay = index * 0.1
-
   // Gestionnaire pour empêcher la navigation lors de la sélection de variants
   const handleVariantClick = (e: React.MouseEvent, action: () => void) => {
     e.preventDefault()
@@ -440,7 +451,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                   </div>
                 )}
                 {product.badge === 'new' && (
-                  <div className="bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
+                  <div className="bg-[var(--color-secondary)] text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
                     NOUVEAU
                   </div>
                 )}
@@ -452,10 +463,13 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               </div>
             </div>
 
-            {/* INDICATEUR DE STOCK PROFESSIONNEL */}
-            {totalStock > 0 && totalStock <= 5 && (
-              <div className="absolute top-3 left-3 bg-amber-500 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
-                Plus que {totalStock} disponible{totalStock > 1 ? 's' : ''}
+            {/* INDICATEUR DE STOCK PROFESSIONNEL
+                Basé sur la variante SÉLECTIONNÉE (couleur + taille), pas le stock total.
+                Le message n'apparaît que si cette variante précise a une quantité
+                inférieure ou égale au seuil d'affichage (Paramètres > Vente). */}
+            {available > 0 && available <= displayThreshold && (
+              <div className="absolute top-3 left-3 bg-[var(--color-accent)] text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
+                Plus que {available} disponible{available > 1 ? 's' : ''}
               </div>
             )}
 
@@ -492,15 +506,18 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
         {product.promotional_price && product.promotional_price < product.price ? (
           <div className="flex items-center gap-2">
             <span className="text-sm text-neutral-400 line-through">
-              {product.price.toFixed(2)} €
+              {product.price.toFixed(2)} {currency}
             </span>
-            <span className="text-lg font-bold text-red-600">
-              {product.promotional_price.toFixed(2)} €
+            <span
+              className="text-lg font-bold"
+              style={{ color: appearance?.accent_color || "#F59E0B" }}
+            >
+              {product.promotional_price.toFixed(2)} {currency}
             </span>
           </div>
         ) : (
           <span className="text-lg font-bold text-neutral-900">
-            {product.price.toFixed(2)} €
+            {product.price.toFixed(2)} {currency}
           </span>
         )}
 
@@ -558,7 +575,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                           disabled={!isAvailable}
                           className={`relative w-12 h-12 rounded-full border-2 transition-all duration-200 ${
                             color === colorName
-                              ? 'border-neutral-900 scale-110'
+                              ? 'border-[var(--color-primary)] scale-110'
                               : 'border-neutral-300 hover:border-neutral-400 hover:scale-105'
                           } disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:border-neutral-300`}
                           title={`${colorName}${!isAvailable ? ' (Indisponible)' : ''}`}
@@ -574,7 +591,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                           {/* Indicateur de sélection pour couleurs claires */}
                           {color === colorName && colorHex === '#FFFFFF' && (
                             <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="w-2 h-2 bg-neutral-900 rounded-full"></div>
+                              <div className="w-2 h-2 bg-[var(--color-primary)] rounded-full"></div>
                             </div>
                           )}
 
@@ -631,13 +648,13 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                           disabled={!isAvailable}
                           className={`relative px-3 py-2 text-sm font-medium rounded border-2 transition-all duration-200 ${
                             size === s
-                              ? 'border-neutral-900 bg-neutral-900 text-white'
+                              ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white'
                               : 'border-neutral-300 bg-white text-neutral-700 hover:border-neutral-400 hover:bg-neutral-50'
                           } disabled:opacity-40 disabled:cursor-not-allowed disabled:text-neutral-400 disabled:border-neutral-200 disabled:hover:border-neutral-200 disabled:hover:bg-white`}
                         >
                           {s}
                           {size === s && (
-                            <div className="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full border border-neutral-900"></div>
+                            <div className="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full border border-[var(--color-primary)]"></div>
                           )}
                           {!isAvailable && (
                             <div className="absolute inset-0 bg-neutral-100 bg-opacity-75 rounded flex items-center justify-center">
@@ -665,14 +682,14 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
           <button
             onClick={(e) => handleVariantClick(e, () => handleAdd(false))}
             disabled={!canPurchase}
-            className="w-full bg-neutral-900 text-white py-2.5 rounded-lg font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            className="w-full bg-[var(--color-primary)] text-white py-2.5 rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           >
             Ajouter
           </button>
           <button
             onClick={(e) => handleVariantClick(e, () => handleAdd(true))}
             disabled={!canPurchase}
-            className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            className="w-full bg-[var(--color-secondary)] text-white py-2.5 rounded-lg font-semibold hover:bg-[var(--color-secondary-dark)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           >
             Acheter
           </button>

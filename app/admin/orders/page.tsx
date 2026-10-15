@@ -10,6 +10,7 @@ import { useConfirmDialogWithUI } from "@/components/confirm-dialog"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { ExchangeModal } from "@/components/exchange-modal"
 import { toast } from "sonner"
+import { useCurrency } from "@/components/settings-provider"
 
 export default function OrdersPage() {
   const [user, setUser] = useState<User | null>(null)
@@ -18,6 +19,7 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true)
   const [updatingOrder, setUpdatingOrder] = useState<string | null>(null)
   const [deliveryFee, setDeliveryFee] = useState(0)
+  const currency = useCurrency()
   const [feeInput, setFeeInput] = useState("")
   const [savingFee, setSavingFee] = useState(false)
   const [freeShippingThreshold, setFreeShippingThreshold] = useState(140)
@@ -551,7 +553,7 @@ export default function OrdersPage() {
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neutral-900" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-primary)]" />
       </div>
     )
   }
@@ -585,17 +587,17 @@ export default function OrdersPage() {
                 value={feeInput}
                 onChange={(e) => setFeeInput(e.target.value)}
                 className="border border-neutral-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-900"
-                placeholder="Montant en DT"
+                placeholder={`Montant en ${currency}`}
               />
               <button
                 type="submit"
                 disabled={savingFee}
-                className="px-4 py-2 bg-neutral-900 text-white rounded-lg font-semibold hover:bg-neutral-800 transition disabled:opacity-50"
+                className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition disabled:opacity-50"
               >
                 {savingFee ? "Enregistrement..." : "Mettre à jour"}
               </button>
             </form>
-            <p className="text-sm text-neutral-600 mt-3">Frais actuels : {deliveryFee.toFixed(2)} DT</p>
+            <p className="text-sm text-neutral-600 mt-3">Frais actuels : {deliveryFee.toFixed(2)} {currency}</p>
           </div>
 
           {/* Livraison gratuite */}
@@ -604,7 +606,7 @@ export default function OrdersPage() {
             <form onSubmit={saveFreeShippingSettings} className="flex flex-col gap-4">
               <div>
                 <label htmlFor="threshold" className="block text-sm font-medium text-neutral-700 mb-2">
-                  Seuil de livraison gratuite (DT)
+                  Seuil de livraison gratuite ({currency})
                 </label>
                 <input
                   id="threshold"
@@ -632,14 +634,14 @@ export default function OrdersPage() {
               <button
                 type="submit"
                 disabled={savingThreshold}
-                className="px-4 py-2 bg-neutral-900 text-white rounded-lg font-semibold hover:bg-neutral-800 transition disabled:opacity-50"
+                className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition disabled:opacity-50"
               >
                 {savingThreshold ? "Enregistrement..." : "Mettre à jour"}
               </button>
             </form>
             <p className="text-sm text-neutral-600 mt-3">
               {freeShippingEnabled 
-                ? `Message actif : "Livraison gratuite à partir de ${freeShippingThreshold} DT"`
+                ? `Message actif : "Livraison gratuite à partir de ${freeShippingThreshold} ${currency}"`
                 : "Message désactivé"}
             </p>
           </div>
@@ -793,7 +795,7 @@ export default function OrdersPage() {
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neutral-900 mx-auto mb-4" />
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-primary)] mx-auto mb-4" />
             <p className="text-neutral-600">Chargement des commandes...</p>
           </div>
         ) : filteredOrders.length === 0 ? (
@@ -826,7 +828,7 @@ export default function OrdersPage() {
 
                     {/* Badge d'échange */}
                     {isExchange && (
-                      <div className="absolute -left-2 top-4 bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md">
+                      <div className="absolute -left-2 top-4 bg-[var(--color-secondary)] text-white text-xs font-bold px-2 py-1 rounded-full shadow-md">
                         ÉCHANGE
                       </div>
                     )}
@@ -1038,18 +1040,18 @@ export default function OrdersPage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                     <div className="text-center p-1.5 bg-white rounded border">
                       <div className="text-neutral-500 text-xs">Produits</div>
-                      <div className="font-semibold text-neutral-900">{(order.total_amount - order.delivery_fee).toFixed(2)} DT</div>
+                      <div className="font-semibold text-neutral-900">{(order.total_amount - order.delivery_fee).toFixed(2)} {currency}</div>
                     </div>
                     <div className="text-center p-1.5 bg-white rounded border">
                       <div className="text-neutral-500 text-xs">Livraison</div>
-                      <div className="font-semibold text-neutral-900">{order.delivery_fee.toFixed(2)} DT</div>
+                      <div className="font-semibold text-neutral-900">{order.delivery_fee.toFixed(2)} {currency}</div>
                     </div>
                     <div className="text-center p-1.5 bg-gradient-to-br from-green-100 to-green-50 rounded border-2 border-green-300 relative">
-                      <div className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded-full mb-1">
+                      <div className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-[var(--color-success)] text-white text-xs font-medium rounded-full mb-1">
                         💰 À encaisser
                       </div>
                       <div className="text-xs text-green-600 font-medium">Total</div>
-                      <div className="font-bold text-green-800 text-lg">{order.total_amount.toFixed(2)} DT</div>
+                      <div className="font-bold text-green-800 text-lg">{order.total_amount.toFixed(2)} {currency}</div>
                     </div>
                   </div>
                 </div>
@@ -1068,7 +1070,7 @@ export default function OrdersPage() {
                           </span>
                         </div>
                         <span className="font-medium text-neutral-900 ml-2 flex-shrink-0 text-sm">
-                          {(item.price * item.quantity).toFixed(2)} DT
+                          {(item.price * item.quantity).toFixed(2)} {currency}
                         </span>
                       </div>
                     ))}
@@ -1105,7 +1107,7 @@ export default function OrdersPage() {
                       <button
                         onClick={() => updateOrderStatus(order.id, "confirmed", order.id.slice(-8).toUpperCase())}
                         disabled={updatingOrder === order.id}
-                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px] text-base font-medium"
+                        className="px-6 py-3 bg-[var(--color-secondary)] text-white rounded-lg hover:bg-[var(--color-secondary-dark)] transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px] text-base font-medium"
                       >
                         <Check size={18} />
                         Accepter
@@ -1113,7 +1115,7 @@ export default function OrdersPage() {
                       <button
                         onClick={() => updateOrderStatus(order.id, "cancelled", order.id.slice(-8).toUpperCase())}
                         disabled={updatingOrder === order.id}
-                        className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px] text-base font-medium"
+                        className="px-6 py-3 bg-[var(--color-danger)] text-white rounded-lg hover:bg-[var(--color-danger-dark)] transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px] text-base font-medium"
                       >
                         <X size={18} />
                         Annuler
@@ -1135,7 +1137,7 @@ export default function OrdersPage() {
                       <button
                         onClick={() => updateOrderStatus(order.id, "cancelled", order.id.slice(-8).toUpperCase())}
                         disabled={updatingOrder === order.id}
-                        className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px] text-base font-medium"
+                        className="px-6 py-3 bg-[var(--color-danger)] text-white rounded-lg hover:bg-[var(--color-danger-dark)] transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px] text-base font-medium"
                       >
                         <X size={18} />
                         Annuler
@@ -1157,7 +1159,7 @@ export default function OrdersPage() {
                       <button
                         onClick={() => updateOrderStatus(order.id, "cancelled", order.id.slice(-8).toUpperCase())}
                         disabled={updatingOrder === order.id}
-                        className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px] text-base font-medium"
+                        className="px-6 py-3 bg-[var(--color-danger)] text-white rounded-lg hover:bg-[var(--color-danger-dark)] transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px] text-base font-medium"
                       >
                         <X size={18} />
                         Annuler
@@ -1171,7 +1173,7 @@ export default function OrdersPage() {
                       <button
                         onClick={() => updateOrderStatus(order.id, "delivered", order.id.slice(-8).toUpperCase())}
                         disabled={updatingOrder === order.id}
-                        className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px] text-base font-medium"
+                        className="px-6 py-3 bg-[var(--color-success)] text-white rounded-lg hover:bg-[var(--color-success-dark)] transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px] text-base font-medium"
                       >
                         <CheckCheck size={18} />
                         Livrée
@@ -1179,7 +1181,7 @@ export default function OrdersPage() {
                       <button
                         onClick={() => updateOrderStatus(order.id, "delivery_failed", order.id.slice(-8).toUpperCase())}
                         disabled={updatingOrder === order.id}
-                        className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px] text-base font-medium"
+                        className="px-6 py-3 bg-[var(--color-danger)] text-white rounded-lg hover:bg-[var(--color-danger)] transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px] text-base font-medium"
                       >
                         <AlertTriangle size={18} />
                         Échec livraison
@@ -1193,7 +1195,7 @@ export default function OrdersPage() {
                       <button
                         onClick={() => updateOrderStatus(order.id, "confirmed_delivery", order.id.slice(-8).toUpperCase())}
                         disabled={updatingOrder === order.id}
-                        className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px] text-base font-medium"
+                        className="px-6 py-3 bg-[var(--color-success)] text-white rounded-lg hover:bg-[var(--color-success-dark)] transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px] text-base font-medium"
                       >
                         <CheckCheck size={18} />
                         Confirmer livraison finale

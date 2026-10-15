@@ -8,7 +8,7 @@ export default function NotFound() {
         <p className="text-neutral-600 mb-8">La page que vous recherchez n'existe pas.</p>
         <Link
           href="/"
-          className="inline-block px-8 py-3 bg-neutral-900 text-white rounded-lg font-semibold hover:bg-neutral-800 transition"
+          className="inline-block px-8 py-3 bg-[var(--color-primary)] text-white rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition"
         >
           Retour à l'accueil
         </Link>

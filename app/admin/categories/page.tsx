@@ -430,7 +430,7 @@ export default function CategoriesPage() {
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neutral-900" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-primary)]" />
       </div>
     )
   }
@@ -823,7 +823,7 @@ export default function CategoriesPage() {
               {/* Compteurs intégrés */}
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5 px-1.5 py-0.5 bg-gradient-to-r from-blue-50 to-blue-25 rounded border border-gray-200/60 shadow-sm">
-                  <div className="w-1 h-1 bg-blue-500 rounded-full flex-shrink-0"></div>
+                  <div className="w-1 h-1 bg-[var(--color-secondary)] rounded-full flex-shrink-0"></div>
                   <span className="text-[10px] font-semibold text-blue-700">
                     {categories.filter(c => !c.parent_id).length}
                   </span>
@@ -1009,14 +1009,14 @@ export default function CategoriesPage() {
                   <div className="flex gap-3 pt-4">
                     <button
                       onClick={() => setShowModal(false)}
-                      className="flex-1 border border-neutral-300 text-neutral-900 py-2 rounded-lg font-semibold hover:border-neutral-900 transition"
+                      className="flex-1 border border-neutral-300 text-neutral-900 py-2 rounded-lg font-semibold hover:border-[var(--color-primary)] transition"
                     >
                       Annuler
                     </button>
                     <button
                       type="submit"
                       form="category-form"
-                      className="flex-1 bg-neutral-900 text-white py-2 rounded-lg font-semibold hover:bg-neutral-800 transition"
+                      className="flex-1 bg-[var(--color-primary)] text-white py-2 rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition"
                     >
                       Mettre à jour
                     </button>
@@ -1049,7 +1049,7 @@ export default function CategoriesPage() {
                             <div className="text-2xl mb-2">{icon}</div>
                             <div className="flex items-center justify-center gap-2 font-semibold text-neutral-900">
                               <div className={`w-2 h-2 rounded-full ${
-                                level === '1' ? 'bg-blue-500' :
+                                level === '1' ? 'bg-[var(--color-secondary)]' :
                                 level === '2' ? 'bg-green-500' :
                                 'bg-purple-500'
                               }`}></div>
@@ -1136,7 +1136,7 @@ export default function CategoriesPage() {
                     <button
                       type="submit"
                       form="category-form"
-                      className="flex-1 bg-neutral-900 text-white py-2 rounded-lg font-semibold hover:bg-neutral-800 transition flex items-center justify-center gap-2"
+                      className="flex-1 bg-[var(--color-primary)] text-white py-2 rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition flex items-center justify-center gap-2"
                     >
                       <Plus size={16} />
                       <span>

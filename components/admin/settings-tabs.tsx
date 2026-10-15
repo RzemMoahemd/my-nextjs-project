@@ -29,12 +29,12 @@ export function SettingsTabs() {
   return (
     <>
       {/* Header */}
-      <header className="bg-neutral-900 text-white">
+      <header className="bg-[var(--color-primary)] text-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link
               href="/admin/dashboard"
-              className="p-2 rounded-lg hover:bg-neutral-800 transition"
+              className="p-2 rounded-lg hover:bg-[var(--color-primary-dark)] transition"
               title="Retour au dashboard"
             >
               <ArrowLeft size={18} />
@@ -47,13 +47,13 @@ export function SettingsTabs() {
           <div className="flex items-center gap-2">
             <Link
               href="/"
-              className="hidden sm:flex items-center gap-2 px-3 py-2 text-sm rounded-lg hover:bg-neutral-800 transition"
+              className="hidden sm:flex items-center gap-2 px-3 py-2 text-sm rounded-lg hover:bg-[var(--color-primary-dark)] transition"
             >
               Voir le site
             </Link>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg hover:bg-neutral-800 transition"
+              className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg hover:bg-[var(--color-primary-dark)] transition"
               title="Déconnexion"
             >
               <LogOut size={16} />
@@ -75,7 +75,7 @@ export function SettingsTabs() {
                 href={tab.href}
                 className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                   active
-                    ? "border-neutral-900 text-neutral-900"
+                    ? "border-[var(--color-primary)] text-neutral-900"
                     : "border-transparent text-neutral-500 hover:text-neutral-800 hover:border-neutral-300"
                 }`}
               >

@@ -11,7 +11,7 @@ import { useCart } from "@/components/cart-provider"
 import { useToast } from "@/hooks/use-toast"
 import { useFavorites } from "@/hooks/use-favorites"
 import { createClientComponentClient } from "@/lib/supabase-client"
-import { useSettings } from "@/components/settings-provider"
+import { useSettings, useCurrency } from "@/components/settings-provider"
 
 export default function ProductDetail() {
   const params = useParams()
@@ -27,7 +27,8 @@ export default function ProductDetail() {
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
   const [user, setUser] = useState<any>(null)
   const favorite = isFavorite(params.id as string)
-  const { shipping_msg } = useSettings()
+  const { shipping_msg, appearance } = useSettings()
+  const currency = useCurrency()
 
   useEffect(() => {
     fetchProduct()
@@ -350,11 +351,11 @@ export default function ProductDetail() {
               <div className="py-4 border-y border-neutral-200">
                 {product.promotional_price && product.promotional_price < product.price ? (
                   <div className="flex items-center gap-3">
-                    <p className="text-2xl text-neutral-500 line-through">{product.price.toFixed(2)} DT</p>
-                    <p className="text-4xl font-bold text-red-600">{product.promotional_price.toFixed(2)} DT</p>
+                    <p className="text-2xl text-neutral-500 line-through">{product.price.toFixed(2)} {currency}</p>
+                    <p className="text-4xl font-bold" style={{ color: appearance?.accent_color || "#F59E0B" }}>{product.promotional_price.toFixed(2)} {currency}</p>
                   </div>
                 ) : (
-                  <p className="text-4xl font-bold text-neutral-900">{product.price.toFixed(2)} DT</p>
+                  <p className="text-4xl font-bold text-neutral-900">{product.price.toFixed(2)} {currency}</p>
                 )}
               </div>
 
@@ -375,8 +376,8 @@ export default function ProductDetail() {
                         onClick={() => setSelectedColor(colorName)}
                         className={`px-6 py-2 rounded-lg border-2 font-semibold transition ${
                           selectedColor === colorName
-                            ? "border-neutral-900 bg-neutral-900 text-white"
-                            : "border-neutral-200 text-neutral-900 hover:border-neutral-900"
+                            ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-white"
+                            : "border-neutral-200 text-neutral-900 hover:border-[var(--color-primary)]"
                         }`}
                       >
                         {colorName}
@@ -400,10 +401,10 @@ export default function ProductDetail() {
                           disabled={!isAvailable}
                           className={`px-6 py-2 rounded-lg border-2 font-semibold transition ${
                             selectedSize === size
-                              ? "border-neutral-900 bg-neutral-900 text-white"
+                              ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-white"
                               : !isAvailable
                               ? "border-neutral-200 bg-neutral-100 text-neutral-400 cursor-not-allowed line-through"
-                              : "border-neutral-200 text-neutral-900 hover:border-neutral-900"
+                              : "border-neutral-200 text-neutral-900 hover:border-[var(--color-primary)]"
                           }`}
                         >
                           {size}
@@ -421,7 +422,18 @@ export default function ProductDetail() {
 
               {/* Stock Status */}
               <div
-                className={`p-4 rounded-lg ${product.is_active && availableQuantity > 0 ? "bg-green-50 text-green-900" : "bg-red-50 text-red-900"}`}
+                className="p-4 rounded-lg"
+                style={
+                  product.is_active && availableQuantity > 0
+                    ? {
+                        backgroundColor: (appearance?.success_color || "#16A34A") + "1A",
+                        color: appearance?.success_color || "#16A34A",
+                      }
+                    : {
+                        backgroundColor: (appearance?.danger_color || "#DC2626") + "1A",
+                        color: appearance?.danger_color || "#DC2626",
+                      }
+                }
               >
                 {product.is_active && availableQuantity > 0 ? (
                   <p className="font-semibold">Disponible</p>
@@ -444,14 +456,14 @@ export default function ProductDetail() {
                     <button
                       onClick={handleAddToCart}
                       disabled={!canPurchase}
-                      className="w-full bg-neutral-900 text-white py-4 rounded-lg font-bold transition hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full bg-[var(--color-primary)] text-white py-4 rounded-lg font-bold transition hover:bg-[var(--color-primary-dark)] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Ajouter au panier
                     </button>
                     <button
                       onClick={handleBuyNow}
                       disabled={!canPurchase}
-                      className="w-full bg-blue-600 text-white py-4 rounded-lg font-bold transition hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full bg-[var(--color-secondary)] text-white py-4 rounded-lg font-bold transition hover:bg-[var(--color-secondary-dark)] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Acheter maintenant
                     </button>
@@ -486,7 +498,7 @@ export default function ProductDetail() {
                       )}
                     </div>
                     <h3 className="font-semibold text-neutral-900 line-clamp-2 mb-1">{p.name}</h3>
-                    <p className="text-lg font-bold text-neutral-900">{p.price.toFixed(2)} €</p>
+                    <p className="text-lg font-bold text-neutral-900">{p.price.toFixed(2)} {currency}</p>
                   </a>
                 ))}
               </div>

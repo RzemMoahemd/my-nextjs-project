@@ -5,6 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { useState } from "react"
 import { Trash2, Edit, ChevronLeft, ChevronRight } from "lucide-react"
+import { useCurrency } from "@/components/settings-provider"
 
 interface AdminProductsTableProps {
   products: Product[]
@@ -14,6 +15,7 @@ interface AdminProductsTableProps {
 
 export function AdminProductsTable({ products, onDeleteClick, isDeleting = false }: AdminProductsTableProps) {
   const [currentPage, setCurrentPage] = useState(1)
+  const currency = useCurrency()
   const itemsPerPage = 10
   const totalPages = Math.ceil(products.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
@@ -69,7 +71,7 @@ export function AdminProductsTable({ products, onDeleteClick, isDeleting = false
                   </div>
                 </td>
 
-                <td className="px-6 py-4 text-sm font-semibold text-neutral-900">{product.price.toFixed(2)} €</td>
+                <td className="px-6 py-4 text-sm font-semibold text-neutral-900">{product.price.toFixed(2)} {currency}</td>
                 <td className="px-6 py-4 text-sm text-neutral-600">{product.sizes.join(", ")}</td>
                 <td className="px-6 py-4 text-sm">
                   {(() => {

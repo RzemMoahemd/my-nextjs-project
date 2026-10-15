@@ -4,12 +4,14 @@ import { useEffect, useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { SettingsCard, SettingsButton } from "@/components/admin/settings-card"
 import { Truck, Package, Clock } from "lucide-react"
+import { useCurrency } from "@/components/settings-provider"
 
 export default function AdminSettingsShippingPage() {
   const [loading, setLoading] = useState(true)
   const [savingDelivery, setSavingDelivery] = useState(false)
   const [savingShipping, setSavingShipping] = useState(false)
   const [savingMsg, setSavingMsg] = useState(false)
+  const currency = useCurrency()
 
   const [deliveryFee, setDeliveryFee] = useState("7")
   const [freeShippingThreshold, setFreeShippingThreshold] = useState("140")
@@ -89,7 +91,7 @@ export default function AdminSettingsShippingPage() {
                 "delivery_fee",
                 { amount: Number(deliveryFee) || 0 },
                 setSavingDelivery,
-                `Frais de livraison : ${deliveryFee} DT`,
+                `Frais de livraison : ${deliveryFee} ${currency}`,
               )
             }
           >
@@ -97,7 +99,7 @@ export default function AdminSettingsShippingPage() {
           </SettingsButton>
         }
       >
-        <label className="block text-sm font-medium text-neutral-700 mb-1">Montant (DT)</label>
+        <label className="block text-sm font-medium text-neutral-700 mb-1">Montant ({currency})</label>
         <input
           type="number"
           min="0"
@@ -122,7 +124,7 @@ export default function AdminSettingsShippingPage() {
                 { threshold: Number(freeShippingThreshold) || 0, enabled: freeShippingEnabled },
                 setSavingShipping,
                 freeShippingEnabled
-                  ? `Gratuite dès ${freeShippingThreshold} DT d'achat.`
+                  ? `Gratuite dès ${freeShippingThreshold} ${currency} d'achat.`
                   : "Livraison gratuite désactivée.",
               )
             }
@@ -143,7 +145,7 @@ export default function AdminSettingsShippingPage() {
           </label>
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1">
-              Seuil (DT) — gratuit à partir de ce montant
+              Seuil ({currency}) — gratuit à partir de ce montant
             </label>
             <input
               type="number"

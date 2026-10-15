@@ -11,10 +11,14 @@ export function FreeShippingBanner({ settings }: { settings: AllSettings }) {
   if (!msg?.banner_enabled) return null
 
   // Montant du seuil ajoute uniquement si la livraison gratuite est active
-  const amount = free?.enabled && free.threshold > 0 ? ` ${free.threshold} DT` : ""
+  const cur = settings.tax?.currency?.trim() || "DT"
+  const amount = free?.enabled && free.threshold > 0 ? ` ${free.threshold} ${cur}` : ""
 
   return (
-    <section className="bg-neutral-800 text-white py-2 text-center text-sm font-medium">
+    <section
+      className="py-2 text-center text-sm font-medium text-white"
+      style={{ backgroundColor: settings.appearance?.banner_color || "#262626" }}
+    >
       {msg.banner_text}
       {amount}
     </section>

@@ -81,7 +81,7 @@ export default function ForgotPasswordPage() {
             </button>
             <Link
               href="/login"
-              className="block w-full px-4 py-2 bg-neutral-900 text-white rounded-lg font-semibold hover:bg-neutral-800 transition text-center"
+              className="block w-full px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition text-center"
             >
               Retour à la connexion
             </Link>
@@ -120,7 +120,7 @@ export default function ForgotPasswordPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-neutral-900 text-white py-3 rounded-lg font-semibold hover:bg-neutral-800 transition disabled:opacity-50"
+            className="w-full bg-[var(--color-primary)] text-white py-3 rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition disabled:opacity-50"
           >
             {loading ? "Envoi en cours..." : "Envoyer le lien de réinitialisation"}
           </button>

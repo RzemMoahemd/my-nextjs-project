@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Edit, Trash2, Tag, Home, Settings, BarChart3 } from "lucide-react"
+import { useCurrency } from "@/components/settings-provider"
 import type { Coupon } from "@/lib/types"
 import Link from "next/link"
 
 export default function CouponsAdminPage() {
   const [coupons, setCoupons] = useState<Coupon[]>([])
   const [loading, setLoading] = useState(true)
+  const currency = useCurrency()
 
   useEffect(() => {
     fetchCoupons()
@@ -104,7 +106,7 @@ export default function CouponsAdminPage() {
                 </Button>
               </Link>
               <Link href="/admin/coupons/new">
-                <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                <Button size="sm" className="bg-[var(--color-secondary)] hover:bg-[var(--color-secondary-dark)]">
                   <Plus size={16} className="mr-2" />
                   Nouveau Coupon
                 </Button>
@@ -205,7 +207,7 @@ export default function CouponsAdminPage() {
                 </p>
                 <div className="mt-6">
                   <Link href="/admin/coupons/new">
-                    <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
+                    <Button size="lg" className="bg-[var(--color-secondary)] hover:bg-[var(--color-secondary-dark)]">
                       <Plus size={20} className="mr-2" />
                       Créer votre premier coupon
                     </Button>
@@ -229,7 +231,7 @@ export default function CouponsAdminPage() {
                         )}
                         {coupon.type === 'fixed' && (
                           <div className="p-2 bg-green-100 rounded-lg">
-                            <span className="text-green-600 font-bold">€</span>
+                            <span className="text-green-600 font-bold">{currency}</span>
                           </div>
                         )}
                         {coupon.type === 'free_shipping' && (
@@ -244,7 +246,7 @@ export default function CouponsAdminPage() {
                           {coupon.code}
                         </CardTitle>
                         <CardDescription className="text-sm">
-                          {coupon.description || getCouponDescription(coupon)}
+                          {coupon.description || getCouponDescription(coupon, currency)}
                         </CardDescription>
                       </div>
                     </div>
@@ -256,7 +258,7 @@ export default function CouponsAdminPage() {
                         className="text-xs"
                       >
                         {coupon.type === 'percentage' && `${coupon.value}% de réduction`}
-                        {coupon.type === 'fixed' && `${coupon.value}€ de réduction`}
+                        {coupon.type === 'fixed' && `${coupon.value} ${currency} de réduction`}
                         {coupon.type === 'free_shipping' && 'Livraison gratuite'}
                       </Badge>
                       <Badge variant={coupon.is_active ? 'default' : 'destructive'}>
@@ -304,7 +306,7 @@ export default function CouponsAdminPage() {
                         <div>
                           <div className="text-xs text-gray-500 uppercase tracking-wide">Minimum</div>
                           <div className="text-sm font-medium text-gray-900">
-                            {coupon.minimum_order}€
+                            {coupon.minimum_order} {currency}
                           </div>
                         </div>
                       </div>
@@ -358,13 +360,13 @@ export default function CouponsAdminPage() {
   )
 }
 
-function getCouponDescription(coupon: Coupon): string {
+function getCouponDescription(coupon: Coupon, currency: string): string {
   if (coupon.type === 'percentage') {
-    return `${coupon.value}% de réduction sur ${coupon.minimum_order > 0 ? `commandes à partir de ${coupon.minimum_order}€` : 'toutes les commandes'}`
+    return `${coupon.value}% de réduction sur ${coupon.minimum_order > 0 ? `commandes à partir de ${coupon.minimum_order} ${currency}` : 'toutes les commandes'}`
   } else if (coupon.type === 'fixed') {
-    return `${coupon.value}€ de réduction sur ${coupon.minimum_order > 0 ? `commandes à partir de ${coupon.minimum_order}€` : 'toutes les commandes'}`
+    return `${coupon.value} ${currency} de réduction sur ${coupon.minimum_order > 0 ? `commandes à partir de ${coupon.minimum_order} ${currency}` : 'toutes les commandes'}`
   } else if (coupon.type === 'free_shipping') {
-    return `Livraison gratuite sur ${coupon.minimum_order > 0 ? `commandes à partir de ${coupon.minimum_order}€` : 'toutes les commandes'}`
+    return `Livraison gratuite sur ${coupon.minimum_order > 0 ? `commandes à partir de ${coupon.minimum_order} ${currency}` : 'toutes les commandes'}`
   }
   return ''
 }

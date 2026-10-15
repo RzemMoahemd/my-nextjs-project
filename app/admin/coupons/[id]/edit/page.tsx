@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Save, Loader2, AlertTriangle, Home, Settings } from "lucide-react"
 import Link from "next/link"
 import type { Coupon } from "@/lib/types"
+import { useCurrency } from "@/components/settings-provider"
 
 export default function EditCouponPage() {
   const router = useRouter()
@@ -21,6 +22,7 @@ export default function EditCouponPage() {
   const [loading, setLoading] = useState(false)
   const [fetchLoading, setFetchLoading] = useState(true)
   const [error, setError] = useState("")
+  const currency = useCurrency()
   const [formData, setFormData] = useState({
     code: "",
     type: "percentage" as Coupon['type'],
@@ -148,7 +150,7 @@ export default function EditCouponPage() {
       case 'percentage':
         return 'Réduction en pourcentage (ex: 15 pour -15%)'
       case 'fixed':
-        return 'Réduction fixe en euros (ex: 20 pour -20€)'
+        return `Réduction fixe en ${currency} (ex: 20 pour -20 ${currency})`
       case 'free_shipping':
         return 'Livraison gratuite (pas de valeur requise)'
       default:
@@ -267,7 +269,7 @@ export default function EditCouponPage() {
                     </SelectItem>
                     <SelectItem value="fixed">
                       <div className="flex items-center gap-2">
-                        <Badge variant="secondary">€</Badge>
+                        <Badge variant="secondary">{currency}</Badge>
                         Montant fixe
                       </div>
                     </SelectItem>
@@ -334,7 +336,7 @@ export default function EditCouponPage() {
 
               {/* Montant minimum */}
               <div className="space-y-2">
-                <Label htmlFor="minimum_order">Montant minimum (€)</Label>
+                <Label htmlFor="minimum_order">Montant minimum ({currency})</Label>
                 <Input
                   id="minimum_order"
                   type="number"

@@ -37,13 +37,13 @@ export default function Error({
         <div className="flex gap-4 justify-center flex-wrap">
           <button
             onClick={handleReset}
-            className="px-6 py-2 bg-neutral-900 text-white rounded-lg font-semibold hover:bg-neutral-800 transition"
+            className="px-6 py-2 bg-[var(--color-primary)] text-white rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition"
           >
             Réessayer
           </button>
           <Link
             href="/"
-            className="px-6 py-2 border-2 border-neutral-900 text-neutral-900 rounded-lg font-semibold hover:bg-neutral-50 transition"
+            className="px-6 py-2 border-2 border-[var(--color-primary)] text-neutral-900 rounded-lg font-semibold hover:bg-neutral-50 transition"
           >
             Accueil
           </Link>

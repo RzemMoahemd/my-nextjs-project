@@ -3,16 +3,16 @@
 import { useEffect, useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { SettingsCard, SettingsButton } from "@/components/admin/settings-card"
-import { AlertTriangle, Coins } from "lucide-react"
+import { AlertTriangle, Coins, ShoppingCart } from "lucide-react"
 
 export default function AdminSettingsVentePage() {
   const [loading, setLoading] = useState(true)
   const [savingStock, setSavingStock] = useState(false)
-  const [savingTax, setSavingTax] = useState(false)
+  const [savingDisplayThreshold, setSavingDisplayThreshold] = useState(false)
+  const [savingCurrency, setSavingCurrency] = useState(false)
 
   const [lowStockThreshold, setLowStockThreshold] = useState("5")
-  const [taxRate, setTaxRate] = useState("0")
-  const [pricesIncludeTax, setPricesIncludeTax] = useState(true)
+  const [lowStockDisplayThreshold, setLowStockDisplayThreshold] = useState("5")
   const [currency, setCurrency] = useState("DT")
 
   const { toast } = useToast()
@@ -24,8 +24,7 @@ export default function AdminSettingsVentePage() {
         if (res.ok) {
           const data = await res.json()
           setLowStockThreshold(String(data.stock?.low_stock_threshold ?? 5))
-          setTaxRate(String(data.tax?.rate ?? 0))
-          setPricesIncludeTax(Boolean(data.tax?.prices_include_tax ?? true))
+          setLowStockDisplayThreshold(String(data.stock?.low_stock_display_threshold ?? 5))
           setCurrency(data.tax?.currency ?? "DT")
         }
       } catch (error) {
@@ -68,18 +67,53 @@ export default function AdminSettingsVentePage() {
 
   return (
     <div className="space-y-6">
+      {/* Devise */}
+      <SettingsCard
+        icon={<Coins size={20} className="text-neutral-700" />}
+        title="Devise"
+        description="Symbole affiché après tous les prix du site (panier, commandes, produits...)"
+        footer={
+          <SettingsButton
+            loading={savingCurrency}
+            onClick={() =>
+              save(
+                "tax",
+                { currency: currency.trim() || "DT" },
+                setSavingCurrency,
+                `Les prix s'affichent désormais en ${currency.trim() || "DT"}.`,
+              )
+            }
+          >
+            Enregistrer
+          </SettingsButton>
+        }
+      >
+        <label className="block text-sm font-medium text-neutral-700 mb-1">Symbole</label>
+        <input
+          type="text"
+          value={currency}
+          onChange={(e) => setCurrency(e.target.value)}
+          maxLength={5}
+          placeholder="DT"
+          className={inputClass}
+        />
+      </SettingsCard>
+
       {/* Stock faible */}
       <SettingsCard
         icon={<AlertTriangle size={20} className="text-neutral-700" />}
         title="Seuil de stock faible"
-        description="Déclenche une notification d'admin quand une variante passe sous ce seuil"
+        description="Seuil par défaut appliqué à tous les produits qui ne définissent pas leur propre seuil dans leur fiche produit. Déclenche une notification dans le tableau de bord admin quand une taille passe sous ce seuil"
         footer={
           <SettingsButton
             loading={savingStock}
             onClick={() =>
               save(
                 "stock",
-                { low_stock_threshold: Number(lowStockThreshold) || 0 },
+                {
+                  low_stock_threshold: Number(lowStockThreshold) || 0,
+                  low_stock_display_threshold: Number(lowStockDisplayThreshold) || 0,
+                },
                 setSavingStock,
                 `Seuil défini à ${lowStockThreshold} unités.`,
               )
@@ -97,22 +131,28 @@ export default function AdminSettingsVentePage() {
           onChange={(e) => setLowStockThreshold(e.target.value)}
           className={inputClass}
         />
+        <p className="text-xs text-neutral-500 mt-2">
+          Un produit peut définir son propre seuil (fiche produit) : il écrasera cette valeur globale.
+        </p>
       </SettingsCard>
 
-      {/* Taxe / devise */}
+      {/* Seuil d'affichage du message client sur la fiche produit */}
       <SettingsCard
-        icon={<Coins size={20} className="text-neutral-700" />}
-        title="Taxes & devise"
-        description="Paramètres d'affichage des prix"
+        icon={<ShoppingCart size={20} className="text-neutral-700" />}
+        title="Seuil d'affichage du message de stock"
+        description="Quantité à partir de laquelle le message « Plus que X disponible » s'affiche sur la carte produit. Le message se base sur la variante sélectionnée par le client (couleur + taille), et non sur le stock total du produit."
         footer={
           <SettingsButton
-            loading={savingTax}
+            loading={savingDisplayThreshold}
             onClick={() =>
               save(
-                "tax",
-                { rate: Number(taxRate) || 0, prices_include_tax: pricesIncludeTax, currency },
-                setSavingTax,
-                "Paramètres fiscaux mis à jour.",
+                "stock",
+                {
+                  low_stock_threshold: Number(lowStockThreshold) || 0,
+                  low_stock_display_threshold: Number(lowStockDisplayThreshold) || 0,
+                },
+                setSavingDisplayThreshold,
+                `Le message s'affichera quand une variante atteindra ${lowStockDisplayThreshold} unité(s) ou moins.`,
               )
             }
           >
@@ -120,40 +160,19 @@ export default function AdminSettingsVentePage() {
           </SettingsButton>
         }
       >
-        <div className="space-y-4">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">Taux de taxe (%)</label>
-              <input
-                type="number"
-                min="0"
-                step="0.5"
-                value={taxRate}
-                onChange={(e) => setTaxRate(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">Devise</label>
-              <input
-                type="text"
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                maxLength={5}
-                className={inputClass}
-              />
-            </div>
-          </div>
-          <label className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={pricesIncludeTax}
-              onChange={(e) => setPricesIncludeTax(e.target.checked)}
-              className="w-4 h-4 rounded border-neutral-300"
-            />
-            <span className="text-sm text-neutral-700">Les prix affichés incluent la taxe</span>
-          </label>
-        </div>
+        <label className="block text-sm font-medium text-neutral-700 mb-1">Quantité seuil d'affichage</label>
+        <input
+          type="number"
+          min="0"
+          value={lowStockDisplayThreshold}
+          onChange={(e) => setLowStockDisplayThreshold(e.target.value)}
+          className={inputClass}
+        />
+        <p className="text-xs text-neutral-500 mt-2">
+          Exemple : pour une veste noire/blanche en XL/XXL, si le client sélectionne « Noir XXL », le message
+          « Plus que X disponible » n'apparaît que si cette variante précise a une quantité inférieure ou égale
+          à ce seuil. Mettre 0 pour désactiver complètement le message.
+        </p>
       </SettingsCard>
     </div>
   )

@@ -75,7 +75,7 @@ export default function AdminSettingsAvancePage() {
       <SettingsCard
         icon={<Wrench size={20} className="text-neutral-700" />}
         title="Mode maintenance"
-        description="Restreint l'accès à la boutique pendant des travaux (message conservé en base)"
+        description="Redirige tous les visiteurs du site public vers une page de maintenance. Le back-office (/admin) reste accessible pour que vous puissiez le désactiver."
         footer={
           <SettingsButton
             loading={savingMaintenance}
@@ -84,7 +84,7 @@ export default function AdminSettingsAvancePage() {
                 "maintenance",
                 { enabled: maintenanceEnabled, message: maintenanceMessage },
                 setSavingMaintenance,
-                maintenanceEnabled ? "Mode maintenance activé (démarrage prochain)." : "Mode maintenance désactivé.",
+                maintenanceEnabled ? "Mode maintenance activé : le site public redirige les visiteurs vers la page de maintenance." : "Mode maintenance désactivé.",
               )
             }
           >

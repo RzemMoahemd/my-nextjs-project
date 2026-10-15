@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { createClientComponentClient } from "@/lib/supabase-client"
 import { useToast } from "@/hooks/use-toast"
+import { useSettings } from "@/components/settings-provider"
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -16,6 +17,7 @@ export default function RegisterPage() {
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClientComponentClient()
+  const { appearance } = useSettings()
 
   // Vérifier si l'utilisateur est déjà connecté
   useEffect(() => {
@@ -153,7 +155,8 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-neutral-900 text-white py-3 rounded-lg font-semibold hover:bg-neutral-800 transition disabled:opacity-50"
+            className="w-full text-white py-3 rounded-lg font-semibold hover:opacity-90 transition disabled:opacity-50"
+            style={{ backgroundColor: appearance?.primary_color || "#171717" }}
           >
             {loading ? "Création du compte..." : "Créer un compte"}
           </button>

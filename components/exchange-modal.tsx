@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Loader2, Plus, Minus, X, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
+import { useCurrency } from "@/components/settings-provider"
 import type { Order, OrderItem } from "@/lib/types"
 
 interface ExchangeModalProps {
@@ -31,6 +32,7 @@ export function ExchangeModal({ isOpen, onClose, order, onExchangeCreated }: Exc
   const [loading, setLoading] = useState(false)
   const [products, setProducts] = useState<Product[]>([])
   const [loadingProducts, setLoadingProducts] = useState(false)
+  const currency = useCurrency()
 
   // Produits sélectionnés pour l'échange
   const [returnedItems, setReturnedItems] = useState<OrderItem[]>([])
@@ -221,7 +223,7 @@ export function ExchangeModal({ isOpen, onClose, order, onExchangeCreated }: Exc
                     </Button>
                   </div>
                   <div className="text-right min-w-[80px]">
-                    <div className="font-semibold">{(item.price * item.quantity).toFixed(2)} DT</div>
+                    <div className="font-semibold">{(item.price * item.quantity).toFixed(2)} {currency}</div>
                   </div>
                   <Button
                     size="sm"
@@ -265,7 +267,7 @@ export function ExchangeModal({ isOpen, onClose, order, onExchangeCreated }: Exc
                       onClick={() => addNewItem(product)}
                       className="text-xs"
                     >
-                      {product.name} - {product.price.toFixed(2)} DT
+                      {product.name} - {product.price.toFixed(2)} {currency}
                     </Button>
                   ))
                 )}
@@ -328,7 +330,7 @@ export function ExchangeModal({ isOpen, onClose, order, onExchangeCreated }: Exc
                       </Button>
                     </div>
                     <div className="text-right min-w-[80px]">
-                      <div className="font-semibold">{(item.price * item.quantity).toFixed(2)} DT</div>
+                      <div className="font-semibold">{(item.price * item.quantity).toFixed(2)} {currency}</div>
                     </div>
                     <Button
                       size="sm"
@@ -357,25 +359,25 @@ export function ExchangeModal({ isOpen, onClose, order, onExchangeCreated }: Exc
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <div className="text-red-600">Produits retournés :</div>
-                <div className="text-lg font-bold text-red-600">{returnedTotal.toFixed(2)} DT</div>
+                <div className="text-lg font-bold text-red-600">{returnedTotal.toFixed(2)} {currency}</div>
               </div>
               <div>
                 <div className="text-green-600">Nouveaux produits :</div>
-                <div className="text-lg font-bold text-green-600">{newTotal.toFixed(2)} DT</div>
+                <div className="text-lg font-bold text-green-600">{newTotal.toFixed(2)} {currency}</div>
               </div>
               <div>
                 <div className="text-blue-600">Différence :</div>
-                <div className="text-lg font-bold text-blue-600">{difference.toFixed(2)} DT</div>
+                <div className="text-lg font-bold text-blue-600">{difference.toFixed(2)} {currency}</div>
               </div>
               <div>
                 <div className="text-purple-600">Frais de livraison :</div>
-                <div className="text-lg font-bold text-purple-600">{deliveryFee.toFixed(2)} DT</div>
+                <div className="text-lg font-bold text-purple-600">{deliveryFee.toFixed(2)} {currency}</div>
               </div>
             </div>
             <Separator className="my-3" />
             <div className="flex justify-between items-center">
               <div className="text-xl font-bold">Total à payer :</div>
-              <div className="text-2xl font-bold text-blue-600">{total.toFixed(2)} DT</div>
+              <div className="text-2xl font-bold text-blue-600">{total.toFixed(2)} {currency}</div>
             </div>
           </div>
 

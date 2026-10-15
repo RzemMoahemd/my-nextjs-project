@@ -41,8 +41,11 @@ INSERT INTO settings (key, value) VALUES
   )),
   ('appearance', jsonb_build_object(
     'primary_color', '#171717',
-    'secondary_color', '#64748B',
+    'secondary_color', '#2563EB',
+    'banner_color', '#262626',
     'accent_color', '#F59E0B',
+    'success_color', '#16A34A',
+    'danger_color', '#DC2626',
     'font_family', 'Geist'
   )),
   ('delivery_fee', jsonb_build_object('amount', 7)),

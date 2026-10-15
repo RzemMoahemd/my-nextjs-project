@@ -10,14 +10,14 @@ function waLink(raw: string) {
 }
 
 export function Footer() {
-  // Paramètres fournis par le layout (rendu serveur) : valeurs correctes
-  // dès le premier affichage, sans fetch ni clignotement.
+  // Parametres fournis par le layout (rendu serveur) : valeurs correctes
+  // des le premier affichage, sans fetch ni clignotement.
   const { store_info: info, shipping_msg } = useSettings()
 
   const wa = waLink(info.whatsapp)
 
   return (
-    <footer className="bg-neutral-900 text-neutral-100 py-8 mt-16">
+    <footer className="bg-[var(--color-primary)] text-neutral-100 py-8 mt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           {/* Brand */}

@@ -83,7 +83,9 @@
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans);
+  /* inherit = police selectionnee dans Parametres > Apparence, injectee
+     sur <html> via font-family inline (var(--font-*)) — ne pas ecraser. */
+  font-family: inherit;
 }
 
 /* ANIMATIONS PERSONNALISÉES DES CARTES PRODUITS */

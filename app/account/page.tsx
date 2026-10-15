@@ -11,6 +11,7 @@ import { Footer } from "@/components/footer"
 import { ProfileForm } from "@/components/profile-form"
 import { useToast } from "@/hooks/use-toast"
 import { useFavorites } from "@/hooks/use-favorites"
+import { useSettings, useCurrency } from "@/components/settings-provider"
 import {
   User,
   Package,
@@ -37,6 +38,8 @@ export default function AccountPage() {
   const { toast } = useToast()
   const { clearCart } = useCart()
   const { clearLocalFavorites } = useFavorites()
+  const { appearance } = useSettings()
+  const currency = useCurrency()
 
   useEffect(() => {
     checkAuth()
@@ -183,7 +186,8 @@ export default function AccountPage() {
               </div>
               <button
                 onClick={handleSignOut}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+                className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:opacity-90 transition"
+                style={{ backgroundColor: appearance?.danger_color || "#DC2626" }}
               >
                 <LogOut className="w-4 h-4" />
                 Déconnexion
@@ -259,7 +263,8 @@ export default function AccountPage() {
                     <h2 className="text-xl font-bold text-neutral-900">Mon profil</h2>
                     <button
                       onClick={() => setEditMode(!editMode)}
-                      className="px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition"
+                      className="px-4 py-2 text-white rounded-lg hover:opacity-90 transition"
+                      style={{ backgroundColor: appearance?.primary_color || "#171717" }}
                     >
                       {editMode ? "Annuler" : "Modifier"}
                     </button>
@@ -375,7 +380,8 @@ export default function AccountPage() {
                       </p>
                       <Link
                         href="/products"
-                        className="inline-flex px-6 py-3 bg-neutral-900 text-white rounded-lg font-semibold hover:bg-neutral-800 transition"
+                        className="inline-flex px-6 py-3 text-white rounded-lg font-semibold hover:opacity-90 transition"
+                        style={{ backgroundColor: appearance?.primary_color || "#171717" }}
                       >
                         Commencer mes achats
                       </Link>
@@ -408,7 +414,7 @@ export default function AccountPage() {
                                 {order.address}, {order.city}
                               </p>
                               <p className="font-medium text-neutral-900">
-                                Total: {order.total_amount.toFixed(2)} DT
+                                Total: {order.total_amount.toFixed(2)} {currency}
                               </p>
                             </div>
                           </div>

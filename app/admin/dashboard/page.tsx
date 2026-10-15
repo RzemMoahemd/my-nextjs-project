@@ -15,6 +15,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Pagination } from "@/components/ui/pagination"
+import { useSettings, useCurrency } from "@/components/settings-provider"
+import { getEffectiveThreshold } from "@/lib/low-stock"
 
 export default function AdminDashboard() {
   const [user, setUser] = useState<User | null>(null)
@@ -30,6 +32,22 @@ export default function AdminDashboard() {
     badge: "all",
   })
   const [sortBy, setSortBy] = useState("recent")
+  const currency = useCurrency()
+  const { stock } = useSettings()
+  const [lowStockCount, setLowStockCount] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch("/api/notifications/low-stock")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (!cancelled && Array.isArray(data)) setLowStockCount(data.length)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [productToDelete, setProductToDelete] = useState<{ id: string; name: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -142,7 +160,7 @@ export default function AdminDashboard() {
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neutral-900" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-primary)]" />
       </div>
     )
   }
@@ -185,11 +203,10 @@ export default function AdminDashboard() {
     })
   }
 
-  const getStockStatus = (totalStock: number) => {
-    const lowStockThreshold = 5
+  const getStockStatus = (totalStock: number, threshold: number) => {
     if (totalStock === 0) {
       return { text: "Rupture", color: "text-red-600", icon: "❌" }
-    } else if (totalStock <= lowStockThreshold) {
+    } else if (totalStock <= threshold) {
       return { text: `${totalStock}`, color: "text-orange-600", icon: "⚠" }
     }
     return { text: `${totalStock}`, color: "text-green-600", icon: "" }
@@ -263,7 +280,8 @@ export default function AdminDashboard() {
           if (totalStock <= 0) return false
           break
         case "low_stock":
-          const lowStockThreshold = 5
+          // Cascade : seuil du produit (override) > seuil global (Paramètres > Vente) > repli 5
+          const lowStockThreshold = getEffectiveThreshold(product, stock?.low_stock_threshold)
           if (totalStock <= 0 || totalStock > lowStockThreshold) return false
           break
         case "out_of_stock":
@@ -406,6 +424,11 @@ export default function AdminDashboard() {
                   >
                     <span className="text-xl flex-shrink-0">🔔</span>
                     <span className="text-sm font-medium text-neutral-800">Notifications</span>
+                    {lowStockCount > 0 && (
+                      <span className="ml-auto inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold">
+                        {lowStockCount}
+                      </span>
+                    )}
                   </Link>
                 </div>
               </div>
@@ -452,10 +475,15 @@ export default function AdminDashboard() {
 
                 <Link
                   href="/admin/notifications"
-                  className="w-10 h-10 flex items-center justify-center rounded-2xl bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-300 transition-colors"
+                  className="relative w-10 h-10 flex items-center justify-center rounded-2xl bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-300 transition-colors"
                   title="Notifications"
                 >
                   <span className="text-lg">🔔</span>
+                  {lowStockCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold">
+                      {lowStockCount}
+                    </span>
+                  )}
                 </Link>
 
                 <button
@@ -637,10 +665,10 @@ export default function AdminDashboard() {
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500"
                 >
                   <option value="all">Tous</option>
-                  <option value="0-50">0-50 DT</option>
-                  <option value="51-100">51-100 DT</option>
-                  <option value="101-200">101-200 DT</option>
-                  <option value="200+">200+ DT</option>
+                  <option value="0-50">0-50 {currency}</option>
+                  <option value="51-100">51-100 {currency}</option>
+                  <option value="101-200">101-200 {currency}</option>
+                  <option value="200+">200+ {currency}</option>
                 </select>
               </div>
 
@@ -823,11 +851,11 @@ export default function AdminDashboard() {
                         </div>
                       </td>
                       <td className="px-8 py-6 text-sm font-semibold text-neutral-900">
-                        {product.price.toFixed(2)} DT
+                        {product.price.toFixed(2)} {currency}
                       </td>
                       <td className="px-8 py-6 text-center text-sm">
                         {(() => {
-                          const stockStatus = getStockStatus(getTotalStock(product))
+                          const stockStatus = getStockStatus(getTotalStock(product), getEffectiveThreshold(product, stock?.low_stock_threshold))
                           return (
                             <span className={`${stockStatus.color} font-medium`}>
                               {stockStatus.icon} {stockStatus.text}
@@ -929,7 +957,7 @@ export default function AdminDashboard() {
               <button
                 onClick={confirmDelete}
                 disabled={isDeleting}
-                className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-[var(--color-danger)] text-white hover:bg-[var(--color-danger-dark)] rounded-lg transition disabled:opacity-50 flex items-center gap-2"
               >
                 {isDeleting ? (
                   <>

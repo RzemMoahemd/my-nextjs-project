@@ -4,15 +4,16 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { createClientComponentClient } from "@/lib/supabase-client"
 import Link from "next/link"
 import { ChevronLeft, Trash2 } from "lucide-react"
 import type { Product } from "@/lib/types"
+import { useCurrency } from "@/components/settings-provider"
 
 export default function EditProductPage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
+  const currency = useCurrency()
   const [product, setProduct] = useState<Product | null>(null)
   const [formData, setFormData] = useState({
     name: "",
@@ -70,7 +71,6 @@ export default function EditProductPage() {
   const [categories, setCategories] = useState<any[]>([])
   const router = useRouter()
   const params = useParams()
-  const supabase = createClientComponentClient()
 
   useEffect(() => {
     fetchProduct()
@@ -94,16 +94,19 @@ export default function EditProductPage() {
       const data = await res.json()
       setProduct(data)
       setFormData({
-        name: data.name,
-        description: data.description,
-        price: data.price.toString(),
+        name: data.name || "",
+        description: data.description || "",
+        price: data.price != null ? data.price.toString() : "",
         promotional_price: data.promotional_price ? data.promotional_price.toString() : "",
-        category: data.category,
-        subcategory: data.subcategory || "",
+        category: data.category || "",
+        // La colonne legacy 'subcategory' est un tableau (TEXT[]) : normaliser en chaîne pour le <select>
+        subcategory: Array.isArray(data.subcategory)
+          ? data.subcategory[0] || ""
+          : data.subcategory || "",
         subsubcategory: data.subsubcategory || "",
         sku: data.sku || "",
         badge: data.badge || "",
-        low_stock_threshold: (data.low_stock_threshold || 5).toString(),
+        low_stock_threshold: data.low_stock_threshold != null ? String(data.low_stock_threshold) : "",
         is_active: data.is_active ?? true,
       })
       setSizes(data.sizes || [])
@@ -190,68 +193,55 @@ export default function EditProductPage() {
     setImagePreviews((prev) => prev.filter((_, i) => i !== index))
   }
 
-  async function uploadNewImages() {
-    const uploadedUrls: string[] = []
-
-    for (const file of newImages) {
-      const filename = `${product?.id}/${Date.now()}-${file.name}`
-
-      const { data, error } = await supabase.storage.from("products").upload(filename, file)
-
-      if (error) throw error
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("products").getPublicUrl(filename)
-
-      uploadedUrls.push(publicUrl)
-    }
-
-    return uploadedUrls
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
     setError("")
 
     try {
-      let finalImages = imagePreviews
-
-      if (newImages.length > 0) {
-        const newUrls = await uploadNewImages()
-        finalImages = [...imagePreviews, ...newUrls]
+      // Envoi multipart vers l'API : les nouvelles images sont uploadées côté serveur
+      // avec le service role (ignore le RLS du storage et de la table products)
+      const payload = new FormData()
+      payload.append(
+        "data",
+        JSON.stringify({
+          name: formData.name,
+          description: formData.description,
+          price: formData.price,
+          promotional_price: formData.promotional_price,
+          category: formData.category || null,
+          subcategory: formData.subcategory,
+          subsubcategory: formData.subsubcategory,
+          sku: formData.sku || null,
+          badge: formData.badge || null,
+          low_stock_threshold:
+            formData.low_stock_threshold === "" ? null : Number.parseInt(formData.low_stock_threshold, 10),
+          sizes,
+          colors,
+          variants,
+          images: imagePreviews,
+          is_active: formData.is_active,
+        }),
+      )
+      for (const file of newImages) {
+        payload.append("files", file)
       }
 
       const res = await fetch(`/api/products/${product?.id}/edit`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name,
-          description: formData.description,
-          price: Number.parseFloat(formData.price),
-          promotional_price: formData.promotional_price ? Number.parseFloat(formData.promotional_price) : null,
-          category: formData.category,
-          subcategory: formData.subcategory || null,
-          subsubcategory: formData.subsubcategory || null,
-          sku: formData.sku || null,
-          badge: formData.badge || null,
-          low_stock_threshold: Number.parseInt(formData.low_stock_threshold) || 5,
-          sizes,
-          colors,
-          variants,
-          images: finalImages,
-          is_active: formData.is_active,
-        }),
+        body: payload,
       })
 
-      if (!res.ok) throw new Error("Update failed")
+      if (!res.ok) {
+        const detail = await res.json().catch(() => null)
+        throw new Error(detail?.error || `Erreur ${res.status}`)
+      }
 
       router.push("/admin/dashboard")
       router.refresh()
     } catch (err) {
       console.error("[v0] Error:", err)
-      setError("Erreur lors de la modification du produit")
+      setError(err instanceof Error ? err.message : "Erreur lors de la modification du produit")
     } finally {
       setSubmitting(false)
     }
@@ -281,7 +271,7 @@ export default function EditProductPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neutral-900" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-primary)]" />
       </div>
     )
   }
@@ -337,7 +327,7 @@ export default function EditProductPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-900 mb-2">Prix initial (€)</label>
+                  <label className="block text-sm font-medium text-neutral-900 mb-2">Prix initial ({currency})</label>
                   <input
                     type="number"
                     name="price"
@@ -350,7 +340,7 @@ export default function EditProductPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-neutral-900 mb-2">Prix promotionnel (€)</label>
+                  <label className="block text-sm font-medium text-neutral-900 mb-2">Prix promotionnel ({currency})</label>
                   <input
                     type="number"
                     name="promotional_price"
@@ -502,7 +492,7 @@ export default function EditProductPage() {
                   className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900"
                   placeholder="5"
                 />
-                <p className="text-xs text-neutral-500 mt-1">Vous serez notifié quand le stock descend à ce niveau</p>
+                <p className="text-xs text-neutral-500 mt-1">Laissez vide pour utiliser le seuil global (Paramètres → Vente). Vous serez notifié quand le stock descend à ce niveau.</p>
               </div>
 
               <div>
@@ -534,15 +524,15 @@ export default function EditProductPage() {
                           {/* Symbole X barré */}
                           <div className="w-6 h-6 flex items-center justify-center">
                             <div className={`w-4 h-0.5 rounded transition-colors ${
-                              isSelected ? 'bg-red-600' : 'bg-neutral-500'
+                              isSelected ? 'bg-[var(--color-danger)]' : 'bg-neutral-500'
                             }`} style={{ transform: 'rotate(45deg) translateY(0)' }} />
                             <div className={`w-4 h-0.5 rounded transition-colors ${
-                              isSelected ? 'bg-red-600' : 'bg-neutral-500'
+                              isSelected ? 'bg-[var(--color-danger)]' : 'bg-neutral-500'
                             }`} style={{ transform: 'rotate(-45deg) translateY(0)' }} />
                           </div>
 
                           {/* Tooltip */}
-                          <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-neutral-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                          <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-[var(--color-primary)] text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
                             {colorData.displayName || colorData.name}
                             {isSelected && ' ✓'}
                           </div>
@@ -554,7 +544,7 @@ export default function EditProductPage() {
                           onClick={() => toggleColor(colorData.name)}
                           className={`relative group w-12 h-12 rounded-full border-2 transition-all duration-200 ${
                             isSelected
-                              ? 'border-neutral-900 scale-110 shadow-lg'
+                              ? 'border-[var(--color-primary)] scale-110 shadow-lg'
                               : 'border-neutral-300 hover:border-neutral-400 hover:scale-105'
                           }`}
                           title={colorData.name}
@@ -570,12 +560,12 @@ export default function EditProductPage() {
                           {/* Indicateur de sélection pour couleurs claires */}
                           {isSelected && colorData.hex === '#FFFFFF' && (
                             <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="w-3 h-3 bg-neutral-900 rounded-full"></div>
+                              <div className="w-3 h-3 bg-[var(--color-primary)] rounded-full"></div>
                             </div>
                           )}
 
                           {/* Tooltip */}
-                          <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-neutral-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                          <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-[var(--color-primary)] text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
                             {colorData.displayName || colorData.name}
                             {isSelected && ' ✓'}
                           </div>
@@ -602,8 +592,8 @@ export default function EditProductPage() {
                               className="inline-flex items-center gap-2 px-3 py-1 bg-white border border-red-400 rounded-full"
                             >
                               <div className="w-4 h-4 rounded-full border-2 border-red-500 flex items-center justify-center bg-red-50">
-                                <div className="w-2 h-0.5 bg-red-600 rounded" style={{ transform: 'rotate(45deg) translateY(0)' }} />
-                                <div className="w-2 h-0.5 bg-red-600 rounded" style={{ transform: 'rotate(-45deg) translateY(0)' }} />
+                                <div className="w-2 h-0.5 bg-[var(--color-danger)] rounded" style={{ transform: 'rotate(45deg) translateY(0)' }} />
+                                <div className="w-2 h-0.5 bg-[var(--color-danger)] rounded" style={{ transform: 'rotate(-45deg) translateY(0)' }} />
                               </div>
                               <span className="text-sm font-medium text-red-700">{colorData.displayName || colorName}</span>
                               <button
@@ -672,7 +662,7 @@ export default function EditProductPage() {
                   <button
                     type="button"
                     onClick={addSize}
-                    className="px-4 py-2 bg-neutral-900 text-white rounded-lg font-semibold hover:bg-neutral-800 transition"
+                    className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition"
                   >
                     Ajouter
                   </button>
@@ -741,7 +731,7 @@ export default function EditProductPage() {
                             addVariant('aucune_couleur', sizeSelect.value)
                           }
                         }}
-                        className="px-4 py-2 bg-neutral-900 text-white rounded-lg font-semibold hover:bg-neutral-800 transition"
+                        className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition"
                       >
                         Ajouter variante
                       </button>
@@ -829,7 +819,7 @@ export default function EditProductPage() {
                     <button
                       type="button"
                       onClick={() => removeImage(idx)}
-                      className="absolute top-2 right-2 bg-red-600 text-white p-1 rounded-full hover:bg-red-700"
+                      className="absolute top-2 right-2 bg-[var(--color-danger)] text-white p-1 rounded-full hover:bg-[var(--color-danger-dark)]"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -855,7 +845,7 @@ export default function EditProductPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="flex-1 bg-neutral-900 text-white py-3 rounded-lg font-semibold hover:bg-neutral-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 bg-[var(--color-primary)] text-white py-3 rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? "Sauvegarde..." : "Modifier le produit"}
             </button>
@@ -863,13 +853,13 @@ export default function EditProductPage() {
               type="button"
               onClick={handleDelete}
               disabled={submitting}
-              className="px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-3 bg-[var(--color-danger)] text-white rounded-lg font-semibold hover:bg-[var(--color-danger-dark)] transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Supprimer
             </button>
             <Link
               href="/admin/dashboard"
-              className="px-6 py-3 border-2 border-neutral-300 text-neutral-900 rounded-lg font-semibold hover:border-neutral-900 transition"
+              className="px-6 py-3 border-2 border-neutral-300 text-neutral-900 rounded-lg font-semibold hover:border-[var(--color-primary)] transition"
             >
               Annuler
             </Link>

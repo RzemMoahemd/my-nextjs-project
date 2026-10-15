@@ -19,7 +19,7 @@ export function SubcategoryFilter({ category, subcategories }: SubcategoryFilter
           href={`/products?category=${category}`}
           className={`px-4 py-2 rounded-full whitespace-nowrap transition ${
             selectedSubcategory === null
-              ? "bg-neutral-900 text-white"
+              ? "bg-[var(--color-primary)] text-white"
               : "bg-neutral-100 text-neutral-800 hover:bg-neutral-200"
           }`}
         >
@@ -32,7 +32,7 @@ export function SubcategoryFilter({ category, subcategories }: SubcategoryFilter
             href={`/products?category=${category}&subcategory=${sub}`}
             className={`px-4 py-2 rounded-full whitespace-nowrap transition ${
               selectedSubcategory === sub
-                ? "bg-neutral-900 text-white"
+                ? "bg-[var(--color-primary)] text-white"
                 : "bg-neutral-100 text-neutral-800 hover:bg-neutral-200"
             }`}
           >

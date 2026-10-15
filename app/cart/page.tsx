@@ -9,12 +9,13 @@ import { useCart } from "@/components/cart-provider"
 import { useToast } from "@/hooks/use-toast"
 import { CouponInput } from "@/components/coupon-input"
 import { X } from "lucide-react"
-import { useSettings } from "@/components/settings-provider"
+import { useSettings, useCurrency } from "@/components/settings-provider"
 
 export default function CartPage() {
   const { items, subtotal, coupon, discount, freeShipping, updateQuantity, removeItem, applyCoupon, removeCoupon } = useCart()
   const { toast } = useToast()
-  const { shipping_msg } = useSettings()
+  const { shipping_msg, appearance } = useSettings()
+  const currency = useCurrency()
   const [deliveryFee, setDeliveryFee] = useState(0)
   const [freeShippingThreshold, setFreeShippingThreshold] = useState(0)
   const [freeShippingEnabled, setFreeShippingEnabled] = useState(false)
@@ -104,7 +105,7 @@ export default function CartPage() {
               <p className="text-neutral-600 mb-4">Votre panier est vide pour le moment.</p>
               <Link
                 href="/products"
-                className="inline-flex px-5 py-3 bg-neutral-900 text-white rounded-lg font-semibold hover:bg-neutral-800 transition"
+                className="inline-flex px-5 py-3 bg-[var(--color-primary)] text-white rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition"
               >
                 Voir les produits
               </Link>
@@ -150,7 +151,7 @@ export default function CartPage() {
                           />
                         </div>
                         <p className="ml-auto text-lg font-semibold text-neutral-900">
-                          {(item.price * item.quantity).toFixed(2)} DT
+                          {(item.price * item.quantity).toFixed(2)} {currency}
                         </p>
                       </div>
                     </div>
@@ -174,14 +175,14 @@ export default function CartPage() {
                 <div className="border-t pt-4 space-y-3">
                   <div className="flex justify-between text-neutral-700">
                     <span>Sous-total</span>
-                    <span>{subtotal.toFixed(2)} DT</span>
+                    <span>{subtotal.toFixed(2)} {currency}</span>
                   </div>
 
                   {/* Remise coupon */}
                   {discount > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Remise coupon</span>
-                      <span>-{discount.toFixed(2)} DT</span>
+                      <span>-{discount.toFixed(2)} {currency}</span>
                     </div>
                   )}
 
@@ -190,14 +191,24 @@ export default function CartPage() {
                     <span>
                       {calculatedDeliveryFee === 0 ? (
                         hasFreeShippingFromCoupon ? (
-                          <span className="text-green-600 font-semibold">Gratuit (Coupon)</span>
+                          <span
+                            className="font-semibold"
+                            style={{ color: appearance?.success_color || "#16A34A" }}
+                          >
+                            Gratuit (Coupon)
+                          </span>
                         ) : hasEligibleFreeShipping ? (
-                          <span className="text-green-600 font-semibold">Gratuit ✓</span>
+                          <span
+                            className="font-semibold"
+                            style={{ color: appearance?.success_color || "#16A34A" }}
+                          >
+                            Gratuit ✓
+                          </span>
                         ) : (
-                          `${calculatedDeliveryFee.toFixed(2)} DT`
+                          `${calculatedDeliveryFee.toFixed(2)} ${currency}`
                         )
                       ) : (
-                        `${calculatedDeliveryFee.toFixed(2)} DT`
+                        `${calculatedDeliveryFee.toFixed(2)} ${currency}`
                       )}
                     </span>
                   </div>
@@ -205,7 +216,7 @@ export default function CartPage() {
                   {/* Indication livraison gratuite */}
                   {!hasFreeShippingFromCoupon && freeShippingEnabled && subtotal < freeShippingThreshold && freeShippingThreshold > 0 && (
                     <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
-                      Plus que {(freeShippingThreshold - subtotalAfterDiscount).toFixed(2)} DT pour la livraison gratuite !
+                      Plus que {(freeShippingThreshold - subtotalAfterDiscount).toFixed(2)} {currency} pour la livraison gratuite !
                     </div>
                   )}
 
@@ -219,13 +230,13 @@ export default function CartPage() {
 
                   <div className="flex justify-between text-xl font-bold text-neutral-900 border-t pt-3">
                     <span>Total</span>
-                    <span>{total.toFixed(2)} DT</span>
+                    <span>{total.toFixed(2)} {currency}</span>
                   </div>
                 </div>
 
                 <Link
                   href="/checkout"
-                  className="w-full inline-flex justify-center bg-neutral-900 text-white py-3 rounded-lg font-semibold hover:bg-neutral-800 transition"
+                  className="w-full inline-flex justify-center bg-[var(--color-primary)] text-white py-3 rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition"
                 >
                   Passer au paiement
                 </Link>

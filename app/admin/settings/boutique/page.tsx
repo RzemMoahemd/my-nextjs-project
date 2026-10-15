@@ -113,7 +113,7 @@ export default function AdminSettingsBoutiquePage() {
   if (loading) {
     return (
       <div className="flex justify-center py-16">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-neutral-900" />
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[var(--color-primary)]" />
       </div>
     )
   }
@@ -218,7 +218,7 @@ export default function AdminSettingsBoutiquePage() {
                     />
                     <button
                       onClick={() => setForm((prev) => ({ ...prev, logo_url: "" }))}
-                      className="absolute -top-2 -right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700"
+                      className="absolute -top-2 -right-2 p-1 bg-[var(--color-danger)] text-white rounded-full hover:bg-[var(--color-danger-dark)]"
                       title="Supprimer"
                     >
                       <X size={12} />
@@ -260,7 +260,7 @@ export default function AdminSettingsBoutiquePage() {
                     />
                     <button
                       onClick={() => setForm((prev) => ({ ...prev, favicon_url: "" }))}
-                      className="absolute -top-2 -right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700"
+                      className="absolute -top-2 -right-2 p-1 bg-[var(--color-danger)] text-white rounded-full hover:bg-[var(--color-danger-dark)]"
                       title="Supprimer"
                     >
                       <X size={12} />

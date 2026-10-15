@@ -21,7 +21,7 @@ export interface Product {
   is_active: boolean
   sku?: string | null
   badge?: 'new' | 'top_sale' | null
-  low_stock_threshold?: number
+  low_stock_threshold?: number | null
   created_at: string
   updated_at: string
   category_id?: string

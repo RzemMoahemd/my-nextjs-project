@@ -6,11 +6,13 @@ import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { useCart } from "@/components/cart-provider"
 import { useToast } from "@/hooks/use-toast"
+import { useCurrency } from "@/components/settings-provider"
 
 export default function CheckoutPage() {
   const { items, subtotal, coupon, discount, freeShipping, clearCart } = useCart()
   const router = useRouter()
   const { toast } = useToast()
+  const currency = useCurrency()
   const [loading, setLoading] = useState(false)
   const [deliveryFee, setDeliveryFee] = useState(0)
   const [freeShippingThreshold, setFreeShippingThreshold] = useState(0)
@@ -284,7 +286,7 @@ export default function CheckoutPage() {
               <button
                 type="submit"
                 disabled={items.length === 0 || loading}
-                className="w-full bg-neutral-900 text-white py-3 rounded-lg font-semibold hover:bg-neutral-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-[var(--color-primary)] text-white py-3 rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? "Envoi..." : "Confirmer ma commande"}
               </button>
@@ -304,7 +306,7 @@ export default function CheckoutPage() {
                         {item.color && `${item.color}, `}Taille {item.size} — {item.quantity} pièce{item.quantity > 1 ? "s" : ""}
                       </p>
                     </div>
-                     <p className="font-semibold text-neutral-900">{(item.price * item.quantity).toFixed(2)} DT</p>
+                     <p className="font-semibold text-neutral-900">{(item.price * item.quantity).toFixed(2)} {currency}</p>
                   </div>
                 ))}
 
@@ -312,14 +314,14 @@ export default function CheckoutPage() {
                 <div className="border-t pt-4 space-y-3">
                   <div className="flex justify-between text-neutral-700">
                     <span>Sous-total</span>
-                    <span>{subtotal.toFixed(2)} DT</span>
+                    <span>{subtotal.toFixed(2)} {currency}</span>
                   </div>
 
                   {/* Remise coupon */}
                   {discount > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Remise coupon ({coupon?.code})</span>
-                      <span>-{discount.toFixed(2)} DT</span>
+                      <span>-{discount.toFixed(2)} {currency}</span>
                     </div>
                   )}
 
@@ -332,10 +334,10 @@ export default function CheckoutPage() {
                         ) : freeShippingEnabled && subtotal >= freeShippingThreshold ? (
                           <span className="text-green-600 font-semibold">Gratuit ✓</span>
                         ) : (
-                          `${calculatedDeliveryFee.toFixed(2)} DT`
+                          `${calculatedDeliveryFee.toFixed(2)} ${currency}`
                         )
                       ) : (
-                        `${calculatedDeliveryFee.toFixed(2)} DT`
+                        `${calculatedDeliveryFee.toFixed(2)} ${currency}`
                       )}
                     </span>
                   </div>
@@ -343,13 +345,13 @@ export default function CheckoutPage() {
                   {/* Indications de livraison gratuite */}
                   {!coupon && freeShippingEnabled && subtotal < freeShippingThreshold && freeShippingThreshold > 0 && (
                     <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
-                      Plus que {(freeShippingThreshold - subtotal).toFixed(2)} DT pour la livraison gratuite !
+                      Plus que {(freeShippingThreshold - subtotal).toFixed(2)} {currency} pour la livraison gratuite !
                     </div>
                   )}
 
                   <div className="flex justify-between text-xl font-bold text-neutral-900 border-t pt-3">
                     <span>Total</span>
-                    <span>{total.toFixed(2)} DT</span>
+                    <span>{total.toFixed(2)} {currency}</span>
                   </div>
 
                   {/* Info coupon appliqué */}

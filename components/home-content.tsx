@@ -91,7 +91,7 @@ export function HomeContent({ shippingDelay }: { shippingDelay?: string }) {
       <Navbar />
       <main className="min-h-screen bg-white">
         {/* Hero Section */}
-        <section className="h-screen md:h-[600px] bg-neutral-900 text-white flex items-center justify-center relative overflow-hidden">
+        <section className="h-screen md:h-[600px] bg-[var(--color-primary)] text-white flex items-center justify-center relative overflow-hidden">
           <div className="absolute inset-0 opacity-20">
             <Image src="/luxury-fashion-clothing.jpg" alt="Hero" fill className="object-cover" />
           </div>
@@ -183,7 +183,7 @@ export function HomeContent({ shippingDelay }: { shippingDelay?: string }) {
                       key={idx}
                       onClick={() => setCurrentIndex(idx)}
                       className={`w-2 h-2 rounded-full transition ${
-                        idx === currentIndex ? "bg-neutral-900 w-8" : "bg-neutral-300"
+                        idx === currentIndex ? "bg-[var(--color-primary)] w-8" : "bg-neutral-300"
                       }`}
                       aria-label={`Aller à la page ${idx + 1}`}
                     />
@@ -218,7 +218,7 @@ export function HomeContent({ shippingDelay }: { shippingDelay?: string }) {
           <div className="text-center">
             <Link
               href="/products"
-              className="inline-block border-2 border-neutral-900 text-neutral-900 px-8 py-3 rounded-lg font-semibold hover:bg-neutral-900 hover:text-white transition"
+              className="inline-block border-2 border-[var(--color-primary)] text-neutral-900 px-8 py-3 rounded-lg font-semibold hover:bg-[var(--color-primary)] hover:text-white transition"
             >
               Voir tous les produits
             </Link>
@@ -229,7 +229,7 @@ export function HomeContent({ shippingDelay }: { shippingDelay?: string }) {
         <section className="py-16 md:py-24 bg-white px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="text-center">
-              <div className="w-12 h-12 bg-neutral-900 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-12 h-12 bg-[var(--color-primary)] rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-white text-xl">✓</span>
               </div>
               <h3 className="font-bold text-lg mb-2">Qualité Premium</h3>
@@ -237,7 +237,7 @@ export function HomeContent({ shippingDelay }: { shippingDelay?: string }) {
             </div>
 
             <div className="text-center">
-              <div className="w-12 h-12 bg-neutral-900 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-12 h-12 bg-[var(--color-primary)] rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-white text-xl">✓</span>
               </div>
               <h3 className="font-bold text-lg mb-2">Livraison Rapide</h3>
@@ -245,7 +245,7 @@ export function HomeContent({ shippingDelay }: { shippingDelay?: string }) {
             </div>
 
             <div className="text-center">
-              <div className="w-12 h-12 bg-neutral-900 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-12 h-12 bg-[var(--color-primary)] rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-white text-xl">✓</span>
               </div>
               <h3 className="font-bold text-lg mb-2">Service Client</h3>

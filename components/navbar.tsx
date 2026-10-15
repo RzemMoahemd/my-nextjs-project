@@ -6,7 +6,7 @@ import { Menu, ShoppingBag, X, User, LogOut, ChevronDown } from "lucide-react"
 import { useCart } from "@/components/cart-provider"
 import { createClientComponentClient } from "@/lib/supabase-client"
 import { useRouter } from "next/navigation"
-import { useSettings } from "@/components/settings-provider"
+import { useSettings, useCurrency } from "@/components/settings-provider"
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
@@ -26,6 +26,7 @@ export function Navbar() {
   const supabase = createClientComponentClient()
   const router = useRouter()
   const { store_info } = useSettings()
+  const currency = useCurrency()
 
   useEffect(() => {
     async function checkUser() {
@@ -230,14 +231,14 @@ export function Navbar() {
                                   {product.promotional_price ? (
                                     <span className="flex items-center gap-2">
                                       <span className="line-through text-neutral-400">
-                                        {product.price} DT
+                                        {product.price} {currency}
                                       </span>
                                       <span className="font-medium text-red-600">
-                                        {product.promotional_price} DT
+                                        {product.promotional_price} {currency}
                                       </span>
                                     </span>
                                   ) : (
-                                    <span>{product.price} DT</span>
+                                    <span>{product.price} {currency}</span>
                                   )}
                                 </p>
                                 {product.badge && (
@@ -319,7 +320,7 @@ export function Navbar() {
             <Link href="/cart" className="relative p-2 rounded-full hover:bg-neutral-100 transition">
               <ShoppingBag size={22} />
               {itemCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-neutral-900 text-white text-[10px] font-bold flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-[var(--color-primary)] text-white text-[10px] font-bold flex items-center justify-center">
                   {itemCount}
                 </span>
               )}

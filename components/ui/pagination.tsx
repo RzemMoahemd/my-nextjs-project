@@ -121,7 +121,7 @@ export function Pagination({ currentPage, totalPages, onPageChange, className = 
                 onClick={() => onPageChange(page as number)}
                 className={`relative inline-flex items-center px-4 py-2 text-sm font-medium transition-colors duration-200 ${
                   currentPage === page
-                    ? 'z-10 bg-neutral-900 border-neutral-900 text-white'
+                    ? 'z-10 bg-[var(--color-primary)] border-[var(--color-primary)] text-white'
                     : 'bg-white border border-neutral-300 text-neutral-500 hover:bg-neutral-50'
                 }`}
               >

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { checkLowStock } from "./check-low-stock"
 
 type AdminClient = SupabaseClient<any, "public", any>
 
@@ -42,6 +43,9 @@ export async function adjustInventoryQuantity(
   if (updateError) {
     throw updateError
   }
+
+  // Recalculer les notifications de stock faible après chaque mouvement de stock
+  await checkLowStock(adminClient, productId)
 }
 
 export async function cleanupExpiredReservations(adminClient: AdminClient) {

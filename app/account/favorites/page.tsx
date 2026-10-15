@@ -9,6 +9,7 @@ import { Footer } from "@/components/footer"
 import { ProductCard } from "@/components/product-card"
 import { useToast } from "@/hooks/use-toast"
 import { useFavorites } from "@/hooks/use-favorites"
+import { useSettings } from "@/components/settings-provider"
 import type { Product, FavoriteItem } from "@/lib/types"
 import { Heart, ArrowRight, ShoppingBag, AlertCircle, Loader2 } from "lucide-react"
 
@@ -16,6 +17,7 @@ export default function FavoritesPage() {
   const router = useRouter()
   const { toast } = useToast()
   const { favorites, toggleFavorite } = useFavorites()
+  const { appearance } = useSettings()
   const [favoritesProducts, setFavoritesProducts] = useState<Product[]>([])
   const [loadingFavorites, setLoadingFavorites] = useState(true)
   const [pageLoading, setPageLoading] = useState(true)
@@ -110,7 +112,8 @@ export default function FavoritesPage() {
               {favorites.length > 0 && (
                 <Link
                   href="/products"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:opacity-90 transition-colors"
+                  style={{ backgroundColor: appearance?.primary_color || "#171717" }}
                 >
                   Continuer mes achats
                   <ArrowRight size={16} />
@@ -136,7 +139,8 @@ export default function FavoritesPage() {
                 </p>
                 <Link
                   href="/products"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors"
+                  className="inline-flex items-center gap-2 px-6 py-3 text-white rounded-lg hover:opacity-90 transition-colors"
+                  style={{ backgroundColor: appearance?.primary_color || "#171717" }}
                 >
                   Découvrir nos produits
                   <ShoppingBag size={18} />
@@ -172,7 +176,8 @@ export default function FavoritesPage() {
                 </p>
                 <Link
                   href="/products"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors"
+                  className="inline-flex items-center gap-2 px-6 py-3 text-white rounded-lg hover:opacity-90 transition-colors"
+                  style={{ backgroundColor: appearance?.primary_color || "#171717" }}
                 >
                   Voir le catalogue
                   <ArrowRight size={18} />

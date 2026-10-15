@@ -206,7 +206,7 @@ export function ProfileForm({
         <button
           type="submit"
           disabled={profileLoading}
-          className="px-6 py-3 bg-neutral-900 text-white rounded-lg font-semibold hover:bg-neutral-800 transition disabled:opacity-50"
+          className="px-6 py-3 bg-[var(--color-primary)] text-white rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition disabled:opacity-50"
         >
           {profileLoading ? "Enregistrement..." : "Sauvegarder"}
         </button>

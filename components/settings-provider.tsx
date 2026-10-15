@@ -25,3 +25,9 @@ export function useSettings(): AllSettings {
   }
   return ctx
 }
+
+// Devise d'affichage des prix (parametre "Vente" de l'admin).
+export function useCurrency(): string {
+  const { tax } = useSettings()
+  return tax?.currency?.trim() || "DT"
+}

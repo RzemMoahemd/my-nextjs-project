@@ -88,8 +88,8 @@ export function ConfirmDialog({
               onClick={onConfirm}
               className={`flex-1 font-semibold ${
                 variant === "destructive"
-                  ? "bg-red-600 hover:bg-red-700 text-white"
-                  : "bg-blue-600 hover:bg-blue-700 text-white"
+                  ? "bg-[var(--color-danger)] hover:bg-[var(--color-danger-dark)] text-white"
+                  : "bg-[var(--color-secondary)] hover:bg-[var(--color-secondary-dark)] text-white"
               }`}
             >
               {confirmText}

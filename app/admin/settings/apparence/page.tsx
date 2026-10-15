@@ -7,13 +7,57 @@ import { Palette } from "lucide-react"
 
 const FONTS = ["Geist", "Inter", "Poppins", "Montserrat", "Roboto", "Playfair Display"]
 
+const COLOR_FIELDS = [
+  {
+    key: "primary_color",
+    label: "Couleur des boutons principaux",
+    hint: "Ajouter au panier, Passer au paiement, Connexion, Enregistrer",
+    default: "#171717",
+  },
+  {
+    key: "secondary_color",
+    label: "Couleur des boutons secondaires",
+    hint: "Acheter maintenant et actions secondaires",
+    default: "#2563EB",
+  },
+  {
+    key: "banner_color",
+    label: "Couleur des bandeaux",
+    hint: "Bannière « Livraison gratuite » et en-têtes sombres",
+    default: "#262626",
+  },
+  {
+    key: "accent_color",
+    label: "Couleur d'accent",
+    hint: "Prix remisés et mise en valeur",
+    default: "#F59E0B",
+  },
+  {
+    key: "success_color",
+    label: "Couleur de succès",
+    hint: "Disponible, livraison gratuite, coupon valide",
+    default: "#16A34A",
+  },
+  {
+    key: "danger_color",
+    label: "Couleur d'erreur",
+    hint: "Rupture de stock, suppression, alertes",
+    default: "#DC2626",
+  },
+] as const
+
 export default function AdminSettingsApparencePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  const [primaryColor, setPrimaryColor] = useState("#171717")
-  const [secondaryColor, setSecondaryColor] = useState("#64748B")
-  const [accentColor, setAccentColor] = useState("#F59E0B")
+  const [colors, setColors] = useState<Record<string, string>>({
+    primary_color: "#171717",
+    secondary_color: "#2563EB",
+    banner_color: "#262626",
+    accent_color: "#F59E0B",
+    success_color: "#16A34A",
+    danger_color: "#DC2626",
+  })
   const [fontFamily, setFontFamily] = useState("Geist")
 
   const { toast } = useToast()
@@ -24,10 +68,10 @@ export default function AdminSettingsApparencePage() {
         const res = await fetch("/api/settings/general")
         if (res.ok) {
           const data = await res.json()
-          setPrimaryColor(data.appearance?.primary_color ?? "#171717")
-          setSecondaryColor(data.appearance?.secondary_color ?? "#64748B")
-          setAccentColor(data.appearance?.accent_color ?? "#F59E0B")
-          setFontFamily(data.appearance?.font_family ?? "Geist")
+          if (data.appearance) {
+            setColors((prev) => ({ ...prev, ...data.appearance }))
+            setFontFamily(data.appearance.font_family ?? "Geist")
+          }
         }
       } catch (error) {
         console.error("[settings] load error:", error)
@@ -46,9 +90,7 @@ export default function AdminSettingsApparencePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           appearance: {
-            primary_color: primaryColor,
-            secondary_color: secondaryColor,
-            accent_color: accentColor,
+            ...colors,
             font_family: fontFamily,
           },
         }),
@@ -71,12 +113,6 @@ export default function AdminSettingsApparencePage() {
     )
   }
 
-  const colors = [
-    { label: "Couleur principale", value: primaryColor, set: setPrimaryColor },
-    { label: "Couleur secondaire", value: secondaryColor, set: setSecondaryColor },
-    { label: "Couleur d'accent", value: accentColor, set: setAccentColor },
-  ]
-
   return (
     <div className="space-y-6">
       <SettingsCard
@@ -91,24 +127,31 @@ export default function AdminSettingsApparencePage() {
       >
         <div className="space-y-6">
           {/* Couleurs */}
-          <div className="grid sm:grid-cols-3 gap-4">
-            {colors.map((c) => (
-              <div key={c.label}>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">{c.label}</label>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {COLOR_FIELDS.map((field) => (
+              <div key={field.key}>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  {field.label}
+                </label>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
-                    value={c.value}
-                    onChange={(e) => c.set(e.target.value)}
-                    className="h-10 w-12 rounded border border-neutral-300 cursor-pointer p-0.5"
+                    value={colors[field.key] || field.default}
+                    onChange={(e) =>
+                      setColors((prev) => ({ ...prev, [field.key]: e.target.value }))
+                    }
+                    className="h-10 w-12 rounded border border-neutral-300 cursor-pointer p-0.5 flex-shrink-0"
                   />
                   <input
                     type="text"
-                    value={c.value}
-                    onChange={(e) => c.set(e.target.value)}
+                    value={colors[field.key] || field.default}
+                    onChange={(e) =>
+                      setColors((prev) => ({ ...prev, [field.key]: e.target.value }))
+                    }
                     className="w-full px-3 py-2 border border-neutral-300 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
                   />
                 </div>
+                <p className="text-xs text-neutral-400 mt-1">{field.hint}</p>
               </div>
             ))}
           </div>
@@ -131,26 +174,36 @@ export default function AdminSettingsApparencePage() {
 
           {/* Aperçu */}
           <div className="border border-neutral-200 rounded-lg p-4 bg-neutral-50">
-            <p className="text-sm text-neutral-500 mb-2">Aperçu :</p>
-            <div className="flex items-center gap-3 flex-wrap">
+            <p className="text-sm text-neutral-500 mb-3">Aperçu :</p>
+            <div
+              className="text-white text-sm text-center py-2 rounded mb-3"
+              style={{ backgroundColor: colors.banner_color }}
+            >
+              Bandeau (livraison, en-têtes)
+            </div>
+            <div className="flex items-center gap-3 flex-wrap mb-3">
               <span
-                className="px-4 py-2 rounded-lg text-white text-sm font-semibold"
-                style={{ backgroundColor: primaryColor, fontFamily: fontFamily }}
+                className="px-4 py-2 text-white text-sm font-semibold rounded-lg"
+                style={{ backgroundColor: colors.primary_color, fontFamily }}
               >
                 Bouton principal
               </span>
               <span
-                className="px-4 py-2 rounded-lg text-white text-sm font-semibold"
-                style={{ backgroundColor: secondaryColor, fontFamily: fontFamily }}
+                className="px-4 py-2 text-white text-sm font-semibold rounded-lg"
+                style={{ backgroundColor: colors.secondary_color, fontFamily }}
               >
-                Secondaire
+                Bouton secondaire
               </span>
               <span
-                className="px-4 py-2 rounded-lg text-white text-sm font-semibold"
-                style={{ backgroundColor: accentColor, fontFamily: fontFamily }}
+                className="px-4 py-2 text-white text-sm font-semibold rounded-lg"
+                style={{ backgroundColor: colors.accent_color, fontFamily }}
               >
                 Accent
               </span>
+            </div>
+            <div className="flex items-center gap-4 text-sm" style={{ fontFamily }}>
+              <span style={{ color: colors.success_color }}>✓ Succès (disponible)</span>
+              <span style={{ color: colors.danger_color }}>✗ Erreur (rupture)</span>
             </div>
           </div>
         </div>

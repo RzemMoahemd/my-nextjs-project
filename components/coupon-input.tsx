@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, Tag, X, Check } from "lucide-react"
+import { useCurrency } from "@/components/settings-provider"
 import type { Coupon } from "@/lib/types"
 
 interface CouponInputProps {
@@ -25,6 +26,7 @@ export function CouponInput({
   const [couponCode, setCouponCode] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const currency = useCurrency()
 
   const applyCoupon = async () => {
     if (!couponCode.trim()) return
@@ -103,7 +105,7 @@ export function CouponInput({
           </Button>
         </div>
         <div className="text-sm text-green-700">
-          {appliedCoupon.description || getDiscountDescription(appliedCoupon, subtotal)}
+          {appliedCoupon.description || getDiscountDescription(appliedCoupon, subtotal, currency)}
         </div>
       </div>
     )
@@ -139,11 +141,11 @@ export function CouponInput({
   )
 }
 
-function getDiscountDescription(coupon: Coupon, subtotal: number): string {
+function getDiscountDescription(coupon: Coupon, subtotal: number, currency: string): string {
   if (coupon.type === 'percentage') {
     return `${coupon.value}% de réduction`
   } else if (coupon.type === 'fixed') {
-    return `${coupon.value}€ de réduction`
+    return `${coupon.value} ${currency} de réduction`
   } else if (coupon.type === 'free_shipping') {
     return 'Livraison gratuite'
   }
