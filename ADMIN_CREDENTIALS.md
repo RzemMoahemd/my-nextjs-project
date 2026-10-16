@@ -95,3 +95,19 @@ ON CONFLICT (id) DO NOTHING;
 
 **Q: Je suis redirigé vers la page de connexion après la connexion**
 - Vérifiez que votre ID utilisateur (UUID) est correct dans la requête SQL
+
+## Étape 4 : Créer le bucket Storage pour les images
+
+Pour que l'upload d'images (accueil, boutique) fonctionne, créez un bucket Supabase.
+
+1. **Allez sur** https://app.supabase.com → **Storage** → **Buckets** → **Create new bucket**
+2. **Nom du bucket :** `homepage-images`
+3. **Visibilité :** `Public`
+4. **Cliquez sur "Save"**
+
+### Vérification
+- Rendez-vous sur le bucket `homepage-images`
+- L'upload en front-office (page d'accueil) devrait maintenant stocker uniquement l'URL, pas l'image en base64.
+
+💡 **Note :** Si vous travaillez sur un environnement local, assurez-vous que les variables d'environnement `NEXT_PUBLIC_SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` sont bien définies dans votre fichier `.env.local`.
+

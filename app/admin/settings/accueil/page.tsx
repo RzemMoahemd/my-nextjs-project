@@ -26,15 +26,6 @@ interface HomepageForm {
 
 const MAX_FILE_SIZE = 500 * 1024
 
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result))
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-}
-
 export default function AdminSettingsAccueilPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -113,10 +104,20 @@ export default function AdminSettingsAccueilPage() {
       return
     }
     try {
-      const dataUrl = await readFileAsDataUrl(file)
-      setForm((prev) => ({ ...prev, hero_image_url: dataUrl }))
-    } catch {
-      toast({ title: "Erreur", description: "Impossible de lire ce fichier.", variant: "destructive" })
+      // Upload vers Supabase Storage, récupération de l'URL publique
+      const fd = new FormData()
+      fd.append("file", file)
+      fd.append("folder", "homepage")
+      const res = await fetch("/api/uploads", { method: "POST", body: fd })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Erreur inconnue" }))
+        throw new Error(data.error || "Impossible de charger l'image.")
+      }
+      const data = await res.json()
+      setForm((prev) => ({ ...prev, hero_image_url: data.url }))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erreur inconnue"
+      toast({ title: "Erreur", description: message, variant: "destructive" })
     }
   }
 
@@ -135,13 +136,23 @@ export default function AdminSettingsAccueilPage() {
       return
     }
     try {
-      const dataUrl = await readFileAsDataUrl(file)
+      // Upload vers Supabase Storage, récupération de l'URL publique
+      const fd = new FormData()
+      fd.append("file", file)
+      fd.append("folder", "categories")
+      const res = await fetch("/api/uploads", { method: "POST", body: fd })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Erreur inconnue" }))
+        throw new Error(data.error || "Impossible de charger l'image.")
+      }
+      const data = await res.json()
       setForm((prev) => ({
         ...prev,
-        category_images: { ...(prev.category_images || {}), [target]: dataUrl },
+        category_images: { ...(prev.category_images || {}), [target]: data.url },
       }))
-    } catch {
-      toast({ title: "Erreur", description: "Impossible de lire ce fichier.", variant: "destructive" })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erreur inconnue"
+      toast({ title: "Erreur", description: message, variant: "destructive" })
     } finally {
       setPendingCategory(null)
     }
@@ -158,19 +169,52 @@ export default function AdminSettingsAccueilPage() {
   async function handleSave() {
     setSaving(true)
     try {
+      // Validation client : rejeter les dataURL avant l'envoi
+      await validateNoDataUrl(form)
       const res = await fetch("/api/settings/general", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ homepage: form }),
       })
-      if (!res.ok) throw new Error("Save failed")
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || "Save failed")
+      }
       toast({ title: "Accueil mis à jour", description: "Contenu enregistré." })
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Erreur inconnue"
       console.error("[settings] save error:", error)
-      toast({ title: "Erreur", description: "Impossible d'enregistrer.", variant: "destructive" })
+      toast({ title: "Erreur", description: message, variant: "destructive" })
     } finally {
       setSaving(false)
     }
+  }
+
+  // Vérification : un dataURL dans le formulaire → on bloque l'envoi
+  async function validateNoDataUrl(form: HomepageForm) {
+    for (const [key, value] of Object.entries(form)) {
+      if (typeof value === "string" && isDataUrl(value)) {
+        throw new Error(
+          `Le champ "${key}" contient une ancienne image (dataURL). ` +
+          `Veuillez re-choisir l'image ou vider le champ.`
+        )
+      }
+    }
+    // category_images
+    if (form.category_images && Object.keys(form.category_images).length > 0) {
+      for (const [cat, url] of Object.entries(form.category_images as Record<string, string>)) {
+        if (isDataUrl(url)) {
+          throw new Error(
+            `L'image de la catégorie "${cat}" contient une ancienne image (dataURL). ` +
+            `Veuillez re-choisir l'image.`
+          )
+        }
+      }
+    }
+  }
+
+  function isDataUrl(value: string): boolean {
+    return /^data:[^;]+;base64,[A-Za-z0-9+/=]+$/.test(value)
   }
 
   if (loading) {

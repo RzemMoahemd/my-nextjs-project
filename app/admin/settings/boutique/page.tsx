@@ -17,16 +17,7 @@ interface StoreInfo {
   favicon_url: string
 }
 
-const MAX_FILE_SIZE = 300 * 1024 // 300 Ko (stocké en base64 dans les settings)
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result))
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-}
+const MAX_FILE_SIZE = 300 * 1024 // 300 Ko
 
 export default function AdminSettingsBoutiquePage() {
   const [loading, setLoading] = useState(true)
@@ -85,10 +76,20 @@ export default function AdminSettingsBoutiquePage() {
     }
 
     try {
-      const dataUrl = await readFileAsDataUrl(file)
-      setForm((prev) => ({ ...prev, [field]: dataUrl }))
-    } catch {
-      toast({ title: "Erreur", description: "Impossible de lire ce fichier.", variant: "destructive" })
+      // Upload vers Supabase Storage, récupération de l'URL publique
+      const fd = new FormData()
+      fd.append("file", file)
+      fd.append("folder", "assets")
+      const res = await fetch("/api/uploads", { method: "POST", body: fd })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Erreur inconnue" }))
+        throw new Error(data.error || "Impossible de charger l'image.")
+      }
+      const data = await res.json()
+      setForm((prev) => ({ ...prev, [field]: data.url }))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erreur inconnue"
+      toast({ title: "Erreur", description: message, variant: "destructive" })
     }
   }
 

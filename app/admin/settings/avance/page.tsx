@@ -20,13 +20,11 @@ export default function AdminSettingsAvancePage() {
 
   const { toast } = useToast()
 
-  const MAX_OG_IMAGE_SIZE = 300 * 1024 // 300 Ko (stocké en base64 dans les settings)
-
   async function handleOgImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ""
     if (!file) return
-    if (file.size > MAX_OG_IMAGE_SIZE) {
+    if (file.size > 300 * 1024) {
       toast({
         title: "Image trop lourde",
         description: "300 Ko maximum. Veuillez compresser l'image (1200×630 recommandé).",
@@ -35,16 +33,25 @@ export default function AdminSettingsAvancePage() {
       return
     }
     try {
-      const dataUrl: string = await new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(String(reader.result))
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
-      setSeoOgImage(dataUrl)
+      const url = await uploadImage(file)
+      setSeoOgImage(url)
     } catch {
       toast({ title: "Erreur", description: "Impossible de lire ce fichier.", variant: "destructive" })
     }
+  }
+
+  // Upload d'image vers Storage, retourne l'URL publique
+  async function uploadImage(file: File) {
+    const fd = new FormData()
+    fd.append("file", file)
+    fd.append("folder", "assets")
+    const res = await fetch("/api/uploads", { method: "POST", body: fd })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ error: "Erreur inconnue" }))
+      throw new Error(data.error || "Impossible de charger l'image.")
+    }
+    const data = await res.json()
+    return data.url
   }
 
   useEffect(() => {
