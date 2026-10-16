@@ -1,4 +1,20 @@
 -- =================================================
+-- ⚠️  SYSTEME DÉPRÉCIÉ - NE PLUS UTILISER
+-- =================================================
+-- Ce script crée des tables obsolètes pour l'ancien système
+-- de personnalisation de l'accueil (homepage_config).
+-- Ce système a été REMPLACÉ par le système suivant :
+--
+--   lib/settings.ts  +  /api/settings/general
+--   → Table "settings" (clé/valeur)
+--   → Page admin : Paramètres > Accueil
+--
+-- Ne pas exécuter ce script dans un nouveau projet.
+-- ───────────────────────────────────────────────────
+-- SYSTÈME ACTIF : Paramètres > Accueil
+-- ───────────────────────────────────────────────────
+
+-- =================================================
 -- Système de personnalisation du site e-commerce
 -- Gestion des catégories principales et sous-catégories
 -- Sections de page d'accueil personnalisables

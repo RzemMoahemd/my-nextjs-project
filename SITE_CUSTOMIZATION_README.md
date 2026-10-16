@@ -1,3 +1,12 @@
+# 🛍️ Documentation - Système de Personnalisation du Site E-commerce (OBSOLÈTE)
+
+> ⚠️  **Ce système est DÉPRÉCIÉ.** Il a été remplacé par le système
+> **"Paramètres > Accueil"** (table `settings`). Ce document est conservé
+> à titre de référence historique uniquement.
+
+## 🎯 Vue d'ensemble
+
+Ce document décrit le système complet de personnalisation permettant aux propriétaires de boutiques Instagram de gérer leur site e-commerce sans intervention du développeur.
 # 🛍️ Documentation - Système de Personnalisation du Site E-commerce
 
 ## 🎯 Vue d'ensemble

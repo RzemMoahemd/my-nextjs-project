@@ -1,3 +1,21 @@
+-- =================================================
+-- ⚠️  SYSTEME DÉPRÉCIÉ - NE PLUS UTILISER
+-- =================================================
+-- Ce script cree des tables obsolètes (homepage_config,
+-- homepage_component_types, site_visual_config, site_categories).
+-- Ce système a été REMPLACÉ par le système suivant :
+--
+--   lib/settings.ts  +  /api/settings/general
+--   → Table "settings" (clé/valeur)
+--   → Page admin : Paramètres > Accueil
+--
+-- À exécuter uniquement pour des raisons de migration ou
+-- de conservation historique. Ne pas utiliser pour
+-- de nouveaux projets.
+--
+-- SYSTÈME ACTIF : Paramètres > Accueil
+-- ───────────────────────────────────────────────────
+
 -- ============================================================
 -- SCRIPT D'INSTALLATION COMPLET - Base de données ELEGANCE
 -- À exécuter ENTIÈREMENT dans le SQL Editor de Supabase

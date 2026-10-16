@@ -1,3 +1,21 @@
+-- =================================================
+-- ⚠️  SYSTEME DÉPRÉCIÉ - NE PLUS UTILISER
+-- =================================================
+-- Ce backup contient des tables obsolètes pour l'ancien système
+-- de personnalisation de l'accueil (homepage_config, etc.).
+-- Ce système a été REMPLACÉ par le système suivant :
+--
+--   lib/settings.ts  +  /api/settings/general
+--   → Table "settings" (clé/valeur)
+--   → Page admin : Paramètres > Accueil
+--
+-- À utiliser uniquement pour des raisons de migration ou
+-- de conservation historique. Ne pas réutiliser ces tables
+-- dans un nouveau projet.
+-- ───────────────────────────────────────────────────
+-- SYSTÈME ACTIF : Paramètres > Accueil
+-- ───────────────────────────────────────────────────
+
 -- ============================================================================
 -- BACKUP COMPLET - BASE DE DONNEES SUPABASE ELEGANCE (projet clothes2)
 -- ============================================================================
