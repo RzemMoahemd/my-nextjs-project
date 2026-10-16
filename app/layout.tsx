@@ -45,7 +45,6 @@ export async function generateMetadata(): Promise<Metadata> {
       description:
         settings.seo?.description ||
         "Découvrez notre collection de vêtements de qualité, stylés et intemporels.",
-      keywords: settings.seo?.keywords || "vêtements, fashion, boutique en ligne",
       robots: "index, follow",
       icons: settings.store_info?.favicon_url
         ? { icon: settings.store_info.favicon_url }
@@ -55,19 +54,20 @@ export async function generateMetadata(): Promise<Metadata> {
         locale: "fr_FR",
         url: "https://elegance-store.vercel.app",
         title: settings.seo?.title || "ELEGANCE - Boutique de Vêtements",
-        description: "Collection de vêtements de qualité et intemporels",
-        images: [
-          {
-            url: "/og-image.jpg",
-            width: 1200,
-            height: 630,
-          },
-        ],
+        description:
+          settings.seo?.description ||
+          "Découvrez notre collection de vêtements de qualité, stylés et intemporels.",
+        // Image d'apercu : valeur admin (Paramètres > Avancé > SEO) si definie,
+        // sinon rien (l'ancien "/og-image.jpg" n'existait pas -> 404).
+        images: settings.seo?.og_image ? [{ url: settings.seo.og_image }] : [],
       },
       twitter: {
         card: "summary_large_image",
         title: settings.seo?.title || "ELEGANCE - Boutique de Vêtements",
-        description: "Collection de vêtements de qualité et intemporels",
+        description:
+          settings.seo?.description ||
+          "Découvrez notre collection de vêtements de qualité, stylés et intemporels.",
+        images: settings.seo?.og_image ? [settings.seo.og_image] : [],
       },
       generator: "v0.app",
     }

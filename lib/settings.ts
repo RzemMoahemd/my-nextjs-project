@@ -43,7 +43,30 @@ export interface MaintenanceConfig {
 export interface SeoConfig {
   title: string
   description: string
-  keywords: string
+  // Image d'apercu lors du partage sur WhatsApp / Facebook / X (OpenGraph).
+  // URL ou data-URL (upload admin). Vide = pas d'image d'apercu.
+  og_image: string
+}
+
+export interface HomepageConfig {
+  hero_title: string
+  hero_subtitle: string
+  hero_button_text: string
+  hero_image_url: string
+  collections_title: string
+  collections_subtitle: string
+  new_title: string
+  new_subtitle: string
+  new_button_text: string
+  feature1_title: string
+  feature1_text: string
+  feature2_title: string
+  feature2_text: string
+  feature3_title: string
+  feature3_text: string
+  // Images personnalisées des catégories principales (clé = nom exact),
+  // uploadées depuis Paramètres > Accueil. Vide = image par défaut en dur.
+  category_images?: Record<string, string>
 }
 
 export interface AppearanceConfig {
@@ -63,6 +86,7 @@ export interface AllSettings {
   tax: TaxConfig
   maintenance: MaintenanceConfig
   seo: SeoConfig
+  homepage: HomepageConfig
   appearance: AppearanceConfig
   delivery_fee: { amount: number }
   free_shipping: { threshold: number; enabled: boolean }
@@ -99,7 +123,25 @@ export const DEFAULT_SETTINGS: AllSettings = {
   seo: {
     title: "ELEGANCE - Boutique de Vêtements",
     description: "Découvrez notre collection de vêtements de qualité, stylés et intemporels.",
-    keywords: "vêtements, fashion, boutique en ligne, Instagram shopping",
+    og_image: "",
+  },
+  homepage: {
+    hero_title: "Style Intemporel",
+    hero_subtitle: "Découvrez notre collection de vêtements de qualité, conçus pour votre style",
+    hero_button_text: "Explorer la collection",
+    hero_image_url: "/luxury-fashion-clothing.jpg",
+    collections_title: "Nos collections",
+    collections_subtitle: "Explorez nos différentes catégories de vêtements",
+    new_title: "Nouveautés",
+    new_subtitle: "Découvrez les derniers articles de notre collection.",
+    new_button_text: "Voir tous les produits",
+    feature1_title: "Qualité Premium",
+    feature1_text: "Vêtements sélectionnés pour leur qualité et leur durabilité.",
+    feature2_title: "Livraison Rapide",
+    feature2_text: "",
+    feature3_title: "Service Client",
+    feature3_text: "Support réactif pour répondre à vos questions.",
+    category_images: {},
   },
   appearance: {
     primary_color: "#171717",
@@ -122,6 +164,7 @@ export const WRITABLE_SETTING_KEYS: (keyof AllSettings)[] = [
   "tax",
   "maintenance",
   "seo",
+  "homepage",
   "appearance",
   "delivery_fee",
   "free_shipping",

@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { SettingsCard, SettingsButton } from "@/components/admin/settings-card"
-import { Wrench, Search } from "lucide-react"
+import { Wrench, Search, X } from "lucide-react"
 
 export default function AdminSettingsAvancePage() {
   const [loading, setLoading] = useState(true)
@@ -15,9 +15,37 @@ export default function AdminSettingsAvancePage() {
 
   const [seoTitle, setSeoTitle] = useState("")
   const [seoDescription, setSeoDescription] = useState("")
-  const [seoKeywords, setSeoKeywords] = useState("")
+  const [seoOgImage, setSeoOgImage] = useState("")
+  const ogImageInputRef = useRef<HTMLInputElement>(null)
 
   const { toast } = useToast()
+
+  const MAX_OG_IMAGE_SIZE = 300 * 1024 // 300 Ko (stocké en base64 dans les settings)
+
+  async function handleOgImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ""
+    if (!file) return
+    if (file.size > MAX_OG_IMAGE_SIZE) {
+      toast({
+        title: "Image trop lourde",
+        description: "300 Ko maximum. Veuillez compresser l'image (1200×630 recommandé).",
+        variant: "destructive",
+      })
+      return
+    }
+    try {
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result))
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+      setSeoOgImage(dataUrl)
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de lire ce fichier.", variant: "destructive" })
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -29,7 +57,7 @@ export default function AdminSettingsAvancePage() {
           setMaintenanceMessage(data.maintenance?.message ?? "")
           setSeoTitle(data.seo?.title ?? "")
           setSeoDescription(data.seo?.description ?? "")
-          setSeoKeywords(data.seo?.keywords ?? "")
+          setSeoOgImage(data.seo?.og_image ?? "")
         }
       } catch (error) {
         console.error("[settings] load error:", error)
@@ -125,7 +153,7 @@ export default function AdminSettingsAvancePage() {
             onClick={() =>
               save(
                 "seo",
-                { title: seoTitle, description: seoDescription, keywords: seoKeywords },
+                { title: seoTitle, description: seoDescription, og_image: seoOgImage },
                 setSavingSeo,
                 "Paramètres SEO enregistrés.",
               )
@@ -150,13 +178,46 @@ export default function AdminSettingsAvancePage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">Mots-clés (séparés par des virgules)</label>
-            <input
-              type="text"
-              value={seoKeywords}
-              onChange={(e) => setSeoKeywords(e.target.value)}
-              className={inputClass}
-            />
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
+              Image de partage <span className="font-normal text-neutral-400">(WhatsApp, Facebook — 1200×630 recommandé)</span>
+            </label>
+            <div className="flex items-center gap-4">
+              {seoOgImage ? (
+                <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={seoOgImage}
+                    alt="Aperçu de partage"
+                    className="h-20 w-auto max-w-[240px] object-cover bg-neutral-50 rounded-lg border border-neutral-200"
+                  />
+                  <button
+                    onClick={() => setSeoOgImage("")}
+                    className="absolute -top-2 -right-2 p-1 bg-[var(--color-danger)] text-white rounded-full hover:bg-[var(--color-danger-dark)]"
+                    title="Supprimer"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ) : (
+                <div className="h-20 w-36 bg-neutral-50 border border-dashed border-neutral-300 rounded-lg flex items-center justify-center text-xs text-neutral-400">
+                  Aucune image
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => ogImageInputRef.current?.click()}
+                className="px-3 py-2 text-sm border border-neutral-300 rounded-lg hover:bg-neutral-50 transition"
+              >
+                Choisir
+              </button>
+              <input
+                ref={ogImageInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={handleOgImageChange}
+              />
+            </div>
           </div>
         </div>
       </SettingsCard>

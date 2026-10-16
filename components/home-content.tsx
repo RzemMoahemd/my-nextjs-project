@@ -6,7 +6,9 @@ import { ProductCard } from "@/components/product-card"
 import Link from "next/link"
 import Image from "next/image"
 import { useEffect, useState } from "react"
-import { Product } from "@/lib/types"
+import { Product, Category } from "@/lib/types"
+import type { HomepageConfig } from "@/lib/settings"
+import { DEFAULT_SETTINGS } from "@/lib/settings"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 
 // Mapping des catégories aux images
@@ -49,23 +51,68 @@ const categoryImages: Record<string, { url: string; alt: string }> = {
   }
 }
 
-export function HomeContent({ shippingDelay }: { shippingDelay?: string }) {
+export function HomeContent({ shippingDelay, homepage }: { shippingDelay?: string; homepage?: HomepageConfig }) {
+  const hp = homepage ?? DEFAULT_SETTINGS.homepage
+  // Bloc 2 (livraison) : le texte automatique "Livraison en X" ne s'affiche
+  // QUE si le champ est vide. Sinon, le texte saisi dans l'admin s'affiche tel quel.
+  const f2custom = (hp.feature2_text || "").trim()
+  const feature2Display =
+    f2custom
+      ? hp.feature2_text
+      : shippingDelay
+        ? `Livraison en ${shippingDelay}`
+        : DEFAULT_SETTINGS.homepage.feature2_text
   const [latestProducts, setLatestProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [currentIndex, setCurrentIndex] = useState(0)
 
   useEffect(() => {
-    const fetchLatestProducts = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/products')
-        if (response.ok) {
-          const products = await response.json()
+        // Produits (Nouveautés) + catégories principales (Collections) en parallèle.
+        // IMPORTANT : les noms des collections viennent de /api/categories (niveau 1),
+        // pas des produits — sinon les clés ne correspondent jamais aux images
+        // enregistrées dans Paramètres > Accueil.
+        const [pres, cres] = await Promise.all([fetch('/api/products'), fetch('/api/categories')])
+        if (pres.ok) {
+          const products = await pres.json()
           setLatestProducts(products.slice(0, 4))
-          
-          // Extract unique categories
-          const uniqueCategories = Array.from(new Set(products.map((p: Product) => p.category))) as string[]
-          setCategories(uniqueCategories)
+
+        // Liste des catégories : d'abord celles présentes dans
+        // homepage.category_images (images personnalisées), sinon catégories
+        // principales en base, puis repli sur les catégories des produits.
+        let names: string[] = []
+        const uploadedKeys = hp.category_images && Object.keys(hp.category_images).length > 0
+          ? Object.keys(hp.category_images).map((k) => k.trim()).filter(Boolean)
+          : []
+
+        if (uploadedKeys.length > 0) {
+          // Supprime les doublons en conservant l'ordre
+          names = Array.from(new Set(uploadedKeys))
+        } else {
+          try {
+            const cres = await fetch('/api/categories')
+            if (cres.ok) {
+              const cats = (await cres.json()) as Category[]
+              if (Array.isArray(cats)) {
+                names = cats.filter((c) => !c.parent_id).map((c) => c.name).filter(Boolean)
+              }
+            }
+          } catch {
+            // repli ci-dessous
+          }
+          if (names.length === 0) {
+            names = Array.from(
+              new Set(
+                products
+                  .map((p: Product) => (typeof p.category === "string" ? p.category.trim() : ""))
+                  .filter((c: string) => c.length > 0),
+              ),
+            ) as string[]
+          }
+        }
+        setCategories(names)
         }
       } catch (error) {
         console.error('Error fetching products:', error)
@@ -74,6 +121,7 @@ export function HomeContent({ shippingDelay }: { shippingDelay?: string }) {
       }
     }
 
+    fetchData()
   }, [])
 
   const nextSlide = () => {
@@ -93,19 +141,25 @@ export function HomeContent({ shippingDelay }: { shippingDelay?: string }) {
         {/* Hero Section */}
         <section className="h-screen md:h-[600px] bg-[var(--color-primary)] text-white flex items-center justify-center relative overflow-hidden">
           <div className="absolute inset-0 opacity-20">
-            <Image src="/luxury-fashion-clothing.jpg" alt="Hero" fill className="object-cover" />
+            <Image
+              src={hp.hero_image_url || "/luxury-fashion-clothing.jpg"}
+              alt="Hero"
+              fill
+              className="object-cover"
+              unoptimized={(hp.hero_image_url || "").startsWith("data:")}
+            />
           </div>
 
           <div className="relative text-center px-4 sm:px-6 lg:px-8 max-w-2xl">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-balance">Style Intemporel</h1>
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-balance">{hp.hero_title}</h1>
             <p className="text-lg md:text-xl text-neutral-300 mb-8 text-balance">
-              Découvrez notre collection de vêtements de qualité, conçus pour votre style.
+              {hp.hero_subtitle}
             </p>
             <Link
               href="/products"
               className="inline-block bg-white text-neutral-900 px-8 py-3 rounded-lg font-semibold hover:bg-neutral-100 transition"
             >
-              Explorer la collection
+              {hp.hero_button_text}
             </Link>
           </div>
         </section>
@@ -113,8 +167,8 @@ export function HomeContent({ shippingDelay }: { shippingDelay?: string }) {
         {/* Collections Section with Carousel */}
         <section className="py-16 md:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-neutral-900 mb-4">Nos collections</h2>
-            <p className="text-neutral-600 md:text-lg">Explorez nos différentes catégories de produits.</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-neutral-900 mb-4">{hp.collections_title}</h2>
+            <p className="text-neutral-600 md:text-lg">{hp.collections_subtitle}</p>
           </div>
 
           {loading ? (
@@ -148,10 +202,16 @@ export function HomeContent({ shippingDelay }: { shippingDelay?: string }) {
               {/* Categories Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {visibleCategories.map((category) => {
-                  const imageData = categoryImages[category] || {
+                  // Priorité : image uploadée depuis Paramètres > Accueil,
+                  // sinon image par défaut en dur, sinon placeholder.
+                  const customUrl = (hp.category_images || {})[category]
+                  const fallback = categoryImages[category] || {
                     url: "https://picsum.photos/400/600",
                     alt: `Collection ${category}`
                   }
+                  const imageData = customUrl
+                    ? { url: customUrl, alt: `Collection ${category}` }
+                    : fallback
                   
                   return (
                     <Link
@@ -164,6 +224,7 @@ export function HomeContent({ shippingDelay }: { shippingDelay?: string }) {
                         alt={imageData.alt}
                         fill
                         className="object-cover transition-transform duration-300 group-hover:scale-105"
+                        unoptimized={imageData.url.startsWith("data:")}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                       <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
@@ -201,8 +262,8 @@ export function HomeContent({ shippingDelay }: { shippingDelay?: string }) {
         {/* Nouveautés Section */}
         <section className="py-16 md:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto bg-neutral-50">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-neutral-900 mb-4">Nouveautés</h2>
-            <p className="text-neutral-600 md:text-lg">Découvrez les derniers articles de notre collection.</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-neutral-900 mb-4">{hp.new_title}</h2>
+            <p className="text-neutral-600 md:text-lg">{hp.new_subtitle}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -220,7 +281,7 @@ export function HomeContent({ shippingDelay }: { shippingDelay?: string }) {
               href="/products"
               className="inline-block border-2 border-[var(--color-primary)] text-neutral-900 px-8 py-3 rounded-lg font-semibold hover:bg-[var(--color-primary)] hover:text-white transition"
             >
-              Voir tous les produits
+              {hp.new_button_text}
             </Link>
           </div>
         </section>
@@ -232,24 +293,24 @@ export function HomeContent({ shippingDelay }: { shippingDelay?: string }) {
               <div className="w-12 h-12 bg-[var(--color-primary)] rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-white text-xl">✓</span>
               </div>
-              <h3 className="font-bold text-lg mb-2">Qualité Premium</h3>
-              <p className="text-neutral-600">Vêtements sélectionnés pour leur qualité et leur durabilité.</p>
+              <h3 className="font-bold text-lg mb-2">{hp.feature1_title}</h3>
+              <p className="text-neutral-600">{hp.feature1_text}</p>
             </div>
 
             <div className="text-center">
               <div className="w-12 h-12 bg-[var(--color-primary)] rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-white text-xl">✓</span>
               </div>
-              <h3 className="font-bold text-lg mb-2">Livraison Rapide</h3>
-              <p className="text-neutral-600">{shippingDelay ? `Livraison en ${shippingDelay}` : "Commande simple et livraison rapide."}</p>
+              <h3 className="font-bold text-lg mb-2">{hp.feature2_title}</h3>
+              <p className="text-neutral-600">{feature2Display}</p>
             </div>
 
             <div className="text-center">
               <div className="w-12 h-12 bg-[var(--color-primary)] rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-white text-xl">✓</span>
               </div>
-              <h3 className="font-bold text-lg mb-2">Service Client</h3>
-              <p className="text-neutral-600">Support réactif pour répondre à vos questions.</p>
+              <h3 className="font-bold text-lg mb-2">{hp.feature3_title}</h3>
+              <p className="text-neutral-600">{hp.feature3_text}</p>
             </div>
           </div>
         </section>

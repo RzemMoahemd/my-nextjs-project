@@ -17,7 +17,7 @@ export default async function Home() {
   return (
     <>
       <FreeShippingBanner settings={settings} />
-      <HomeContent shippingDelay={settings.shipping_msg?.delay} />
+      <HomeContent shippingDelay={settings.shipping_msg?.delay} homepage={settings.homepage} />
     </>
   )
 }

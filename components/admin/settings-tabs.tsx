@@ -3,11 +3,12 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { createClientComponentClient } from "@/lib/supabase-client"
-import { Store, Truck, Palette, ShoppingCart, Settings2, LogOut, ArrowLeft } from "lucide-react"
+import { Store, Truck, Palette, ShoppingCart, Settings2, LogOut, ArrowLeft, Home } from "lucide-react"
 
 const TABS = [
   { href: "/admin/settings", label: "Livraison", icon: Truck, exact: true },
   { href: "/admin/settings/boutique", label: "Boutique", icon: Store },
+  { href: "/admin/settings/accueil", label: "Accueil", icon: Home },
   { href: "/admin/settings/apparence", label: "Apparence", icon: Palette },
   { href: "/admin/settings/vente", label: "Vente", icon: ShoppingCart },
   { href: "/admin/settings/avance", label: "Avancé", icon: Settings2 },

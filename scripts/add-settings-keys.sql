@@ -37,7 +37,7 @@ INSERT INTO settings (key, value) VALUES
   ('seo', jsonb_build_object(
     'title', 'ELEGANCE - Boutique de Vêtements',
     'description', 'Découvrez notre collection de vêtements de qualité, stylés et intemporels.',
-    'keywords', 'vêtements, fashion, boutique en ligne, Instagram shopping'
+    'og_image', ''
   )),
   ('appearance', jsonb_build_object(
     'primary_color', '#171717',
