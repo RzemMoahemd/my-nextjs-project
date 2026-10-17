@@ -1,9 +1,9 @@
-import { createClient } from "@/lib/supabase-server"
+import { createAdminClient } from "@/lib/supabase-admin"
 import { NextResponse } from "next/server"
 
 export async function GET() {
   try {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
     // Utiliser les nouvelles colonnes avec jointures pour récupérer les noms
     const { data, error } = await supabase
@@ -14,6 +14,7 @@ export async function GET() {
         subcategory:categories!subcategory_id(name),
         subsubcategory:categories!subsubcategory_id(name)
       `)
+      .eq("is_active", true)
       .order("created_at", { ascending: false })
 
     if (error) throw error

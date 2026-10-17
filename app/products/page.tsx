@@ -246,7 +246,7 @@ export default function ProductsPage() {
     }
   }
 
-          const categories = Array.from(new Set(products.map((p) => p.category)))
+          const categories = Array.from(new Set(products.map((p) => p.category).filter(Boolean)))
   const sizes = Array.from(new Set(products.flatMap((p) => p.sizes)))
 
   // Extract subcategories for the selected category

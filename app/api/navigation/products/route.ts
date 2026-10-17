@@ -1,24 +1,27 @@
-import { createClient } from "@/lib/supabase-server"
+import { createAdminClient } from "@/lib/supabase-admin"
 import { NextResponse } from "next/server"
 
 // GET - Récupérer les données nécessaires au dropdown de navigation
 export async function GET(request: Request) {
   try {
-    const serverClient = await createClient()
+    const supabase = createAdminClient()
 
-    // Récupérer toutes les catégories pour le dropdown de navigation
-    const { data: categories, error: categoriesError } = await serverClient
+    // Récupérer toutes les catégories et ne garder que les racines (niveau 1, sans parent)
+    const { data: allCategories, error: categoriesError } = await supabase
       .from("categories")
       .select("id, name, parent_id")
       .order("name")
-      .limit(10) // Limite pour éviter trop de catégories
 
     if (categoriesError) {
       console.error("[v0] Categories fetch error:", categoriesError)
     }
 
+    const categories = (allCategories || []).filter(
+      (c) => c.parent_id === null || c.parent_id === undefined
+    )
+
     // Récupérer les 3 derniers produits ajoutés (actifs uniquement)
-    const { data: recentProducts, error: productsError } = await serverClient
+    const { data: recentProducts, error: productsError } = await supabase
       .from("products")
       .select(`
         id,

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
@@ -70,18 +70,19 @@ export function HomeContent({ shippingDelay, homepage }: { shippingDelay?: strin
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Produits (Nouveautés) + catégories principales (Collections) en parallèle.
-        // IMPORTANT : les noms des collections viennent de /api/categories (niveau 1),
-        // pas des produits — sinon les clés ne correspondent jamais aux images
-        // enregistrées dans Paramètres > Accueil.
-        const [pres, cres] = await Promise.all([fetch('/api/products'), fetch('/api/categories')])
+        // Récupération des produits (Nouveautés) — indépendante des catégories
+        let products: Product[] = []
+        const pres = await fetch('/api/products')
         if (pres.ok) {
-          const products = await pres.json()
+          products = await pres.json()
           setLatestProducts(products.slice(0, 4))
+        } else {
+          console.warn('[HomeContent] /api/products échec (status ' + pres.status + ')')
+        }
 
-        // Liste des catégories : d'abord celles présentes dans
-        // homepage.category_images (images personnalisées), sinon catégories
-        // principales en base, puis repli sur les catégories des produits.
+        // Récupération des catégories principales (niveau 1 = racines, parent_id NULL)
+        // Toujours appelée, indépendamment du statut de /api/products
+        
         let names: string[] = []
         const uploadedKeys = hp.category_images && Object.keys(hp.category_images).length > 0
           ? Object.keys(hp.category_images).map((k) => k.trim()).filter(Boolean)
@@ -96,11 +97,13 @@ export function HomeContent({ shippingDelay, homepage }: { shippingDelay?: strin
             if (cres.ok) {
               const cats = (await cres.json()) as Category[]
               if (Array.isArray(cats)) {
-                names = cats.filter((c) => !c.parent_id).map((c) => c.name).filter(Boolean)
+                names = cats.filter((c) => c.parent_id === null || c.parent_id === undefined).map((c) => c.name).filter(Boolean)
               }
+            } else {
+              console.warn('[HomeContent] /api/categories échec (status ' + cres.status + ')')
             }
-          } catch {
-            // repli ci-dessous
+          } catch (err) {
+            console.error('[HomeContent] Erreur chargement catégories:', err)
           }
           if (names.length === 0) {
             names = Array.from(
@@ -113,9 +116,8 @@ export function HomeContent({ shippingDelay, homepage }: { shippingDelay?: strin
           }
         }
         setCategories(names)
-        }
       } catch (error) {
-        console.error('Error fetching products:', error)
+        console.error('[HomeContent] Erreur générale:', error)
       } finally {
         setLoading(false)
       }
@@ -319,3 +321,5 @@ export function HomeContent({ shippingDelay, homepage }: { shippingDelay?: strin
     </>
   )
 }
+
+
