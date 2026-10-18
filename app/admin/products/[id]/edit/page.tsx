@@ -476,8 +476,9 @@ export default function EditProductPage() {
                     <option value="">Aucun badge</option>
                     <option value="new">Nouveau</option>
                     <option value="top_sale">Top vente</option>
+                    <option value="promo">Promo</option>
                   </select>
-                  <p className="text-xs text-neutral-500 mt-1">Le badge "Promo" s'affiche automatiquement quand le stock est à 0</p>
+                  <p className="text-xs text-neutral-500 mt-1">Le badge &quot;Promo&quot; ne s&apos;affiche côté client qu&apos;en cas de remise réelle (prix promo &lt; prix) et uniquement si le produit est en stock. En rupture de stock, aucun badge Promo n&apos;est affiché.</p>
                 </div>
               </div>
 

@@ -7,6 +7,7 @@ import { useCart } from "@/components/cart-provider"
 import { createClientComponentClient } from "@/lib/supabase-client"
 import { useRouter } from "next/navigation"
 import { useSettings, useCurrency } from "@/components/settings-provider"
+import { hasActivePromo, getStoredBadge, isOutOfStock } from "@/lib/product-badges"
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
@@ -228,30 +229,66 @@ export function Navbar() {
                                   {product.name}
                                 </h4>
                                 <p className="text-sm text-neutral-600">
-                                  {product.promotional_price ? (
-                                    <span className="flex items-center gap-2">
-                                      <span className="line-through text-neutral-400">
-                                        {product.price} {currency}
+                                  {(() => {
+                                    const showPromo = hasActivePromo(product)
+                                    return showPromo ? (
+                                      <span className="flex items-center gap-2">
+                                        <span className="line-through text-neutral-400">
+                                          {product.price} {currency}
+                                        </span>
+                                        <span className="font-medium text-red-600">
+                                          {product.promotional_price} {currency}
+                                        </span>
                                       </span>
-                                      <span className="font-medium text-red-600">
-                                        {product.promotional_price} {currency}
-                                      </span>
-                                    </span>
-                                  ) : (
-                                    <span>{product.price} {currency}</span>
-                                  )}
+                                    ) : (
+                                      <span>{product.price} {currency}</span>
+                                    )
+                                  })()}
                                 </p>
-                                {product.badge && (
-                                  <span className={`px-2 py-1 text-xs rounded ${
-                                    product.badge === 'new' ? 'bg-blue-100 text-blue-800' :
-                                    product.badge === 'top_sale' ? 'bg-green-100 text-green-800' :
-                                    'bg-neutral-100 text-neutral-800'
-                                  }`}>
-                                    {product.badge === 'new' ? 'Nouveau' :
-                                     product.badge === 'top_sale' ? 'Top vente' :
-                                     product.badge}
-                                  </span>
-                                )}
+                                {(() => {
+                                  const out = isOutOfStock(product)
+                                  const showPromo = hasActivePromo(product)
+                                  const stored = getStoredBadge(product)
+                                  if (out) {
+                                    return (
+                                      <span className="flex flex-wrap gap-1">
+                                        <span className="px-2 py-1 text-xs font-semibold rounded bg-neutral-900 text-white">
+                                          Rupture
+                                        </span>
+                                        {stored === 'new' && (
+                                          <span className="px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-800">
+                                            Nouveau
+                                          </span>
+                                        )}
+                                        {stored === 'top_sale' && (
+                                          <span className="px-2 py-1 text-xs font-semibold rounded bg-yellow-100 text-yellow-800">
+                                            Top vente
+                                          </span>
+                                        )}
+                                      </span>
+                                    )
+                                  }
+                                  if (!showPromo && !stored) return null
+                                  return (
+                                    <span className="flex flex-wrap gap-1">
+                                      {showPromo && (
+                                        <span className="px-2 py-1 text-xs font-semibold rounded bg-red-100 text-red-800">
+                                          Promo
+                                        </span>
+                                      )}
+                                      {stored === 'new' && (
+                                        <span className="px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-800">
+                                          Nouveau
+                                        </span>
+                                      )}
+                                      {stored === 'top_sale' && (
+                                        <span className="px-2 py-1 text-xs font-semibold rounded bg-yellow-100 text-yellow-800">
+                                          Top vente
+                                        </span>
+                                      )}
+                                    </span>
+                                  )
+                                })()}
                               </div>
                             </Link>
                           ))}

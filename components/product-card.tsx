@@ -13,6 +13,7 @@ import { useFavorites } from "@/hooks/use-favorites"
 import { createClientComponentClient } from "@/lib/supabase-client"
 import { useSettings, useCurrency } from "@/components/settings-provider"
 import { getDisplayThreshold } from "@/lib/low-stock"
+import { hasActivePromo, getDiscountPercent, getStoredBadge, isOutOfStock } from "@/lib/product-badges"
 
 interface ProductCardProps {
   product: Product
@@ -133,8 +134,12 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
     setCurrentImageIndex(index)
   }
 
-  // Check if product should show promo badge
-  const hasPromo = totalStock === 0
+  // Badges : PROMO = remise réelle + stock disponible (jamais en rupture).
+  // RUPTURE = totalStock <= 0 (prioritaire sur tout).
+  const outOfStock = isOutOfStock(product)
+  const showPromo = hasActivePromo(product)
+  const discountPercent = getDiscountPercent(product)
+  const storedBadge = getStoredBadge(product)
 
   // Reset carousel when leaving
   const handleMouseLeave = () => {
@@ -367,7 +372,8 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                   src={image || "/placeholder.svg"}
                   alt={`${product.name} - ${index + 1}`}
                   fill
-                  className={`object-cover object-center transition-opacity duration-300 ${
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  className={`object-cover object-center transition-opacity duration-500 bg-neutral-100 ${
                     index === currentImageIndex ? "opacity-100" : "opacity-0"
                   }`}
                 />
@@ -443,22 +449,30 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                 <Heart size={16} className={favorite ? 'fill-current' : ''} />
               </button>
 
-              {/* Badges */}
-              <div className="flex flex-col gap-1">
-                {hasPromo && (
-                  <div className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
-                    PROMO
+              {/* Badges — priorité : RUPTURE > PROMO > NOUVEAU / TOP VENTE */}
+              <div className="flex flex-col gap-1 items-end">
+                {outOfStock ? (
+                  <div className="bg-neutral-900 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
+                    RUPTURE
                   </div>
-                )}
-                {product.badge === 'new' && (
-                  <div className="bg-[var(--color-secondary)] text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
-                    NOUVEAU
-                  </div>
-                )}
-                {product.badge === 'top_sale' && (
-                  <div className="bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
-                    TOP VENTE
-                  </div>
+                ) : (
+                  <>
+                    {showPromo && (
+                      <div className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
+                        {discountPercent > 0 ? `PROMO -${discountPercent}%` : "PROMO"}
+                      </div>
+                    )}
+                    {storedBadge === 'new' && (
+                      <div className="bg-blue-600 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
+                        NOUVEAU
+                      </div>
+                    )}
+                    {storedBadge === 'top_sale' && (
+                      <div className="bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
+                        TOP VENTE
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -502,8 +516,8 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
           </div>
         </div>
 
-        {/* PRIX - COLLÉ AU TITRE */}
-        {product.promotional_price && product.promotional_price < product.price ? (
+        {/* PRIX - COLLÉ AU TITRE (promo masquée en rupture de stock) */}
+        {showPromo ? (
           <div className="flex items-center gap-2">
             <span className="text-sm text-neutral-400 line-through">
               {product.price.toFixed(2)} {currency}
@@ -512,7 +526,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               className="text-lg font-bold"
               style={{ color: appearance?.accent_color || "#F59E0B" }}
             >
-              {product.promotional_price.toFixed(2)} {currency}
+              {(product.promotional_price ?? product.price).toFixed(2)} {currency}
             </span>
           </div>
         ) : (

@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useFavorites } from "@/hooks/use-favorites"
 import { createClientComponentClient } from "@/lib/supabase-client"
 import { useSettings, useCurrency } from "@/components/settings-provider"
+import { hasActivePromo, getStoredBadge, getDiscountPercent, isOutOfStock } from "@/lib/product-badges"
 
 export default function ProductDetail() {
   const params = useParams()
@@ -347,16 +348,67 @@ export default function ProductDetail() {
                 </div>
               </div>
 
-              {/* Price */}
+              {/* Badges — priorité : RUPTURE > PROMO > NOUVEAU / TOP VENTE */}
+              <div className="flex flex-wrap gap-2 mt-3">
+                {(() => {
+                  const out = isOutOfStock(product)
+                  const showPromo = hasActivePromo(product)
+                  const stored = getStoredBadge(product)
+                  const discount = getDiscountPercent(product)
+                  if (out) {
+                    return (
+                      <>
+                        <span className="bg-neutral-900 text-white px-3 py-1 rounded-full text-xs font-bold">
+                          RUPTURE DE STOCK
+                        </span>
+                        {stored === "new" && (
+                          <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+                            NOUVEAU
+                          </span>
+                        )}
+                        {stored === "top_sale" && (
+                          <span className="bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-bold">
+                            TOP VENTE
+                          </span>
+                        )}
+                      </>
+                    )
+                  }
+                  return (
+                    <>
+                      {showPromo && (
+                        <span className="bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold">
+                          {discount > 0 ? `PROMO -${discount}%` : "PROMO"}
+                        </span>
+                      )}
+                      {stored === "new" && (
+                        <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+                          NOUVEAU
+                        </span>
+                      )}
+                      {stored === "top_sale" && (
+                        <span className="bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-bold">
+                          TOP VENTE
+                        </span>
+                      )}
+                    </>
+                  )
+                })()}
+              </div>
+
+              {/* Price (prix promo affiché uniquement si promo active : remise + en stock) */}
               <div className="py-4 border-y border-neutral-200">
-                {product.promotional_price && product.promotional_price < product.price ? (
+                {(() => {
+                  const showPromo = product ? hasActivePromo(product) : false
+                  return showPromo ? (
                   <div className="flex items-center gap-3">
                     <p className="text-2xl text-neutral-500 line-through">{product.price.toFixed(2)} {currency}</p>
-                    <p className="text-4xl font-bold" style={{ color: appearance?.accent_color || "#F59E0B" }}>{product.promotional_price.toFixed(2)} {currency}</p>
+                    <p className="text-4xl font-bold" style={{ color: appearance?.accent_color || "#F59E0B" }}>{(product.promotional_price ?? product.price).toFixed(2)} {currency}</p>
                   </div>
                 ) : (
                   <p className="text-4xl font-bold text-neutral-900">{product.price.toFixed(2)} {currency}</p>
-                )}
+                )
+                })()}
               </div>
 
               {/* Description */}

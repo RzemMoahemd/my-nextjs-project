@@ -31,6 +31,7 @@ export async function GET(request: Request) {
         images,
         category,
         badge,
+        variants,
         created_at
       `)
       .eq("is_active", true)

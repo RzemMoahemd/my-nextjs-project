@@ -20,7 +20,7 @@ export interface Product {
   images: string[]
   is_active: boolean
   sku?: string | null
-  badge?: 'new' | 'top_sale' | null
+  badge?: 'new' | 'top_sale' | 'promo' | null
   low_stock_threshold?: number | null
   created_at: string
   updated_at: string

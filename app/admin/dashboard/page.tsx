@@ -17,6 +17,7 @@ import {
 import { Pagination } from "@/components/ui/pagination"
 import { useSettings, useCurrency } from "@/components/settings-provider"
 import { getEffectiveThreshold } from "@/lib/low-stock"
+import { hasActivePromo } from "@/lib/product-badges"
 
 export default function AdminDashboard() {
   const [user, setUser] = useState<User | null>(null)
@@ -290,10 +291,12 @@ export default function AdminDashboard() {
       }
     }
 
-    // Badge filter
+    // Badge filter (promo = remise réelle + en stock, jamais en rupture)
     if (filters.badge !== "all") {
       if (filters.badge === "none") {
         if (product.badge) return false
+      } else if (filters.badge === "promo") {
+        if (!hasActivePromo(product)) return false
       } else if (product.badge !== filters.badge) {
         return false
       }
@@ -866,23 +869,30 @@ export default function AdminDashboard() {
                       <td className="px-8 py-6 text-sm text-neutral-600">{getVariantsInfo(product)}</td>
                       <td className="px-8 py-6 text-sm font-mono text-neutral-600">{product.sku || "-"}</td>
                       <td className="px-8 py-6 text-sm">
-                        {product.badge && (
-                          <span
-                            className={`px-2 py-1 rounded text-xs font-semibold ${
-                              product.badge === "new"
-                                ? "bg-blue-100 text-blue-800"
-                                : product.badge === "top_sale"
-                                ? "bg-yellow-100 text-yellow-800"
-                                : "bg-green-100 text-green-800"
-                            }`}
-                          >
-                            {product.badge === "new"
-                              ? "Nouveau"
-                              : product.badge === "top_sale"
-                              ? "Top vente"
-                              : "Promo"}
-                          </span>
-                        )}
+                        {(() => {
+                          const stored = product.badge === "new" || product.badge === "top_sale" ? product.badge : null
+                          const showPromo = hasActivePromo(product)
+                          if (!stored && !showPromo) return <span className="text-neutral-400">-</span>
+                          return (
+                            <span className="flex flex-wrap gap-1">
+                              {stored === "new" && (
+                                <span className="px-2 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-800">
+                                  Nouveau
+                                </span>
+                              )}
+                              {stored === "top_sale" && (
+                                <span className="px-2 py-1 rounded text-xs font-semibold bg-yellow-100 text-yellow-800">
+                                  Top vente
+                                </span>
+                              )}
+                              {showPromo && (
+                                <span className="px-2 py-1 rounded text-xs font-semibold bg-red-100 text-red-800">
+                                  Promo
+                                </span>
+                              )}
+                            </span>
+                          )
+                        })()}
                       </td>
                       <td className="px-8 py-6 text-sm">
                         <button
