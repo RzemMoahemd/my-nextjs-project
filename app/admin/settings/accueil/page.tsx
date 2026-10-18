@@ -24,11 +24,13 @@ interface HomepageForm {
   category_images: Record<string, string>
 }
 
-const MAX_FILE_SIZE = 500 * 1024
+const MAX_FILE_SIZE = 5 * 1024 * 1024
 
 export default function AdminSettingsAccueilPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [heroUploading, setHeroUploading] = useState(false)
+  const [categoryUploading, setCategoryUploading] = useState(false)
 
   const [form, setForm] = useState<HomepageForm>({
     hero_title: "",
@@ -91,18 +93,20 @@ export default function AdminSettingsAccueilPage() {
   }, [])
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
-    const { name, value } = e.target
+    const { name, value } = e.target as HTMLInputElement | HTMLTextAreaElement
     setForm((prev) => ({ ...prev, [name]: value }))
   }
 
   async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    e.target.value = ""
+    const input = e.target as HTMLInputElement
+    const file = input.files?.[0]
+    input.value = ""
     if (!file) return
     if (file.size > MAX_FILE_SIZE) {
-      toast({ title: "Image trop lourde", description: "500 Ko maximum.", variant: "destructive" })
+      toast({ title: "Image trop lourde", description: "5 Mo maximum.", variant: "destructive" })
       return
     }
+    setHeroUploading(true)
     try {
       // Upload vers Supabase Storage, récupération de l'URL publique
       const fd = new FormData()
@@ -118,6 +122,8 @@ export default function AdminSettingsAccueilPage() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erreur inconnue"
       toast({ title: "Erreur", description: message, variant: "destructive" })
+    } finally {
+      setHeroUploading(false)
     }
   }
 
@@ -127,13 +133,15 @@ export default function AdminSettingsAccueilPage() {
   }
 
   async function handleCategoryImageChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    e.target.value = ""
-    const target = pendingCategory
+    const input = e.target as HTMLInputElement
+    const file = input.files?.[0]
+    input.value = ""
+    const target: string | null = pendingCategory
     if (!file || !target) return
     if (file.size > MAX_FILE_SIZE) {
-      toast({ title: "Image trop lourde", description: "500 Ko maximum.", variant: "destructive" })
+      toast({ title: "Image trop lourde", description: "5 Mo maximum.", variant: "destructive" })
       return
+    setCategoryUploading(true)
     }
     try {
       // Upload vers Supabase Storage, récupération de l'URL publique
@@ -155,6 +163,7 @@ export default function AdminSettingsAccueilPage() {
       toast({ title: "Erreur", description: message, variant: "destructive" })
     } finally {
       setPendingCategory(null)
+      setCategoryUploading(false)
     }
   }
 
@@ -176,7 +185,7 @@ export default function AdminSettingsAccueilPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ homepage: form }),
       })
-      const data = await res.json().catch(() => ({}))
+      const data = (await res.json().catch(() => ({ error: "" }))) as { error?: string }
       if (!res.ok) {
         throw new Error(data.error || "Save failed")
       }
@@ -201,8 +210,8 @@ export default function AdminSettingsAccueilPage() {
       }
     }
     // category_images
-    if (form.category_images && Object.keys(form.category_images).length > 0) {
-      for (const [cat, url] of Object.entries(form.category_images as Record<string, string>)) {
+    if (Object.keys(form.category_images).length > 0) {
+      for (const [cat, url] of Object.entries(form.category_images)) {
         if (isDataUrl(url)) {
           throw new Error(
             `L'image de la catégorie "${cat}" contient une ancienne image (dataURL). ` +
@@ -265,7 +274,7 @@ export default function AdminSettingsAccueilPage() {
               ) : (
                 <div className="h-20 w-36 bg-neutral-50 border border-dashed border-neutral-300 rounded-lg flex items-center justify-center text-xs text-neutral-400">Image par défaut</div>
               )}
-              <button type="button" onClick={() => heroInputRef.current?.click()} className="px-3 py-2 text-sm border border-neutral-300 rounded-lg hover:bg-neutral-50 transition">Choisir</button>
+              <button type="button" onClick={() => heroInputRef.current?.click()} disabled={heroUploading} className="px-3 py-2 text-sm border border-neutral-300 rounded-lg hover:bg-neutral-50 transition opacity-70 cursor-not-allowed">{heroUploading ? "Chargement…" : "Choisir"}</button>
               <input ref={heroInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleImageChange} />
             </div>
           </div>
@@ -332,7 +341,7 @@ export default function AdminSettingsAccueilPage() {
                         Défaut
                       </div>
                     )}
-                    <button type="button" onClick={() => pickCategoryImage(name)} className="px-4 py-2 bg-neutral-100 text-neutral-800 rounded-lg font-semibold hover:bg-neutral-200 transition">{url ? "Remplacer" : "Choisir"}</button>
+                    <button type="button" onClick={() => pickCategoryImage(name)} disabled={categoryUploading} className="px-4 py-2 bg-neutral-100 text-neutral-800 rounded-lg font-semibold hover:bg-neutral-200 transition opacity-70 cursor-not-allowed">{categoryUploading ? "Chargement…" : url ? "Remplacer" : "Choisir"}</button>
                   </div>
                 </div>
               )
@@ -383,3 +392,4 @@ export default function AdminSettingsAccueilPage() {
     </div>
   )
 }
+

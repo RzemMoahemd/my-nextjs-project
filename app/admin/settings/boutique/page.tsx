@@ -22,6 +22,8 @@ const MAX_FILE_SIZE = 300 * 1024 // 300 Ko
 export default function AdminSettingsBoutiquePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [faviconUploading, setFaviconUploading] = useState(false)
 
   const [form, setForm] = useState<StoreInfo>({
     name: "",
@@ -75,6 +77,8 @@ export default function AdminSettingsBoutiquePage() {
       return
     }
 
+    const setUploading = field === "logo_url" ? setLogoUploading : setFaviconUploading
+    setUploading(true)
     try {
       // Upload vers Supabase Storage, récupération de l'URL publique
       const fd = new FormData()
@@ -90,6 +94,8 @@ export default function AdminSettingsBoutiquePage() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erreur inconnue"
       toast({ title: "Erreur", description: message, variant: "destructive" })
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -233,9 +239,10 @@ export default function AdminSettingsBoutiquePage() {
                 <button
                   type="button"
                   onClick={() => logoInputRef.current?.click()}
-                  className="px-3 py-2 text-sm border border-neutral-300 rounded-lg hover:bg-neutral-50 transition"
+                  disabled={logoUploading}
+                  className="px-3 py-2 text-sm border border-neutral-300 rounded-lg hover:bg-neutral-50 transition opacity-70 cursor-not-allowed"
                 >
-                  Choisir
+                  {logoUploading ? "Chargement…" : "Choisir"}
                 </button>
                 <input
                   ref={logoInputRef}
@@ -275,9 +282,10 @@ export default function AdminSettingsBoutiquePage() {
                 <button
                   type="button"
                   onClick={() => faviconInputRef.current?.click()}
-                  className="px-3 py-2 text-sm border border-neutral-300 rounded-lg hover:bg-neutral-50 transition"
+                  disabled={faviconUploading}
+                  className="px-3 py-2 text-sm border border-neutral-300 rounded-lg hover:bg-neutral-50 transition opacity-70 cursor-not-allowed"
                 >
-                  Choisir
+                  {faviconUploading ? "Chargement…" : "Choisir"}
                 </button>
                 <input
                   ref={faviconInputRef}

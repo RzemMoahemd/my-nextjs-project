@@ -9,6 +9,7 @@ export default function AdminSettingsAvancePage() {
   const [loading, setLoading] = useState(true)
   const [savingMaintenance, setSavingMaintenance] = useState(false)
   const [savingSeo, setSavingSeo] = useState(false)
+  const [ogImageUploading, setOgImageUploading] = useState(false)
 
   const [maintenanceEnabled, setMaintenanceEnabled] = useState(false)
   const [maintenanceMessage, setMaintenanceMessage] = useState("")
@@ -32,11 +33,14 @@ export default function AdminSettingsAvancePage() {
       })
       return
     }
+    setOgImageUploading(true)
     try {
       const url = await uploadImage(file)
       setSeoOgImage(url)
     } catch {
       toast({ title: "Erreur", description: "Impossible de lire ce fichier.", variant: "destructive" })
+    } finally {
+      setOgImageUploading(false)
     }
   }
 
@@ -213,9 +217,10 @@ export default function AdminSettingsAvancePage() {
               <button
                 type="button"
                 onClick={() => ogImageInputRef.current?.click()}
-                className="px-3 py-2 text-sm border border-neutral-300 rounded-lg hover:bg-neutral-50 transition"
+                disabled={ogImageUploading}
+                className="px-3 py-2 text-sm border border-neutral-300 rounded-lg hover:bg-neutral-50 transition opacity-70 cursor-not-allowed"
               >
-                Choisir
+                {ogImageUploading ? "Chargement…" : "Choisir"}
               </button>
               <input
                 ref={ogImageInputRef}

@@ -383,7 +383,7 @@ export function ProductsPageClient({
         <div
           onClick={() => setShowFilters(false)}
           aria-hidden="true"
-          className={`fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity duration-300 ${
+          className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${
             showFilters ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
         />
@@ -392,14 +392,14 @@ export function ProductsPageClient({
           role="dialog"
           aria-modal="true"
           aria-label="Filtres produits"
-          className={`bg-neutral-50 md:bg-neutral-50 md:static md:translate-x-0 md:w-64 md:flex-shrink-0 md:rounded-lg md:z-auto fixed top-0 right-0 h-full w-[85%] max-w-sm z-50 shadow-2xl md:shadow-none transition-transform duration-300 ease-in-out overflow-y-auto ${
-            showFilters ? "translate-x-0" : "translate-x-full md:translate-x-0"
+          className={`bg-neutral-50 fixed top-0 right-0 h-full w-[85%] max-w-sm z-50 shadow-2xl transition-transform duration-300 ease-in-out overflow-y-auto ${
+            showFilters ? "translate-x-0" : "translate-x-full"
           }`}
         >
           <div className="p-6 md:p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-bold text-lg flex items-center gap-2">
-                <Filter size={18} className="md:hidden" />
+                <Filter size={18} />
                 Filtres
                 {activeFiltersCount > 0 && (
                   <span className="min-w-5 h-5 px-1.5 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">
@@ -410,7 +410,7 @@ export function ProductsPageClient({
               <button
                 onClick={() => setShowFilters(false)}
                 aria-label="Fermer les filtres"
-                className="md:hidden p-1 rounded-full hover:bg-neutral-200 transition"
+                className="p-1 rounded-full hover:bg-neutral-200 transition"
               >
                 <X size={24} />
               </button>
@@ -731,7 +731,7 @@ export function ProductsPageClient({
         <div className="flex-1">
           <button
             onClick={() => setShowFilters(true)}
-            className="md:hidden mb-6 flex items-center gap-2 px-4 py-2.5 bg-neutral-900 text-white rounded-lg font-medium shadow-sm"
+            className="mb-6 flex items-center gap-2 px-4 py-2.5 bg-neutral-900 text-white rounded-lg font-medium shadow-sm"
           >
             <Filter size={18} />
             Filtres

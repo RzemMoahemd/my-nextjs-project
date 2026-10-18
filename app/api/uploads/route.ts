@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { uploadImageToStorage } from "@/lib/storage";
 
 // Dossiers disponibles
-export const UPLOAD_FOLDERS = ["homepage", "categories"] as const;
+export const UPLOAD_FOLDERS = ["homepage", "categories", "assets"] as const;
 export type UploadFolder = (typeof UPLOAD_FOLDERS)[number];
 
-// Taille max (500 Ko) = même limite que le client admin
-const MAX_FILE_SIZE = 500 * 1024;
+// Taille max (5 Mo) = même limite que le client admin
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 /**
  * Upload d'une image vers Supabase Storage.
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     // Vérifier la taille
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: `Image trop lourde (max ${MAX_FILE_SIZE / 1024} Ko).` },
+        { error: `Image trop lourde (max ${MAX_FILE_SIZE / 1024 / 1024} Mo).` },
         { status: 400 }
       );
     }
