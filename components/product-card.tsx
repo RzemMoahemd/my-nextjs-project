@@ -1,13 +1,11 @@
 "use client"
 
 import Image from "next/image"
-import Link from "next/link"
+
 import { useRouter } from "next/navigation"
 import { useState, useEffect, useRef } from "react"
 import type { Product } from "@/lib/types"
-import { ArrowUpRight, ShoppingBag, ChevronLeft, ChevronRight, AlertCircle, ChevronDown, Heart } from "lucide-react"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { useCart } from "@/components/cart-provider"
+import { ArrowUpRight, ShoppingBag, ChevronLeft, ChevronRight, Heart } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useFavorites } from "@/hooks/use-favorites"
 import { createClientComponentClient } from "@/lib/supabase-client"
@@ -22,7 +20,6 @@ interface ProductCardProps {
 
 export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const router = useRouter()
-  const { addItem } = useCart()
   const { toast } = useToast()
   const [isHovered, setIsHovered] = useState(false)
   const [user, setUser] = useState<any>(null)
@@ -79,38 +76,18 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const initialColor = initialVariant?.color ?? (product.colors?.includes('aucune_couleur') ? 'aucune_couleur' : product.colors?.[0]) ?? ""
   const initialSize = initialVariant?.size ?? product.sizes?.[0] ?? ""
 
-  const [color, setColor] = useState<string>(initialColor)
-  const [size, setSize] = useState<string>(initialSize)
-
-  // Reset size when color changes
-  useEffect(() => {
-    const newAvailableSizes = getAvailableSizes()
-    if (!newAvailableSizes.includes(size)) {
-      setSize(newAvailableSizes[0] || "")
-    }
-  }, [color])
-
   // Calculate total stock from variants
   const totalStock = product.variants?.reduce((sum, v) => sum + v.quantity, 0) ?? 0
 
-  // Get available quantity for selected color and size
-  const getAvailableQuantity = () => {
-    if (!color || !size) return 0
-    const variant = product.variants?.find(v => v.color === color && v.size === size)
-    return variant?.quantity ?? 0
+  // Vérifier si une taille est en rupture de stock (aucune variante avec quantity > 0 pour cette taille)
+  const isSizeOutOfStock = (sizeName: string) => {
+    if (!product.variants || product.variants.length === 0) return true
+    const variantsForSize = product.variants.filter(v => v.size === sizeName)
+    // Pas de variante pour cette taille = épuisée
+    if (variantsForSize.length === 0) return true
+    // Toutes les variantes de cette taille ont quantity = 0 = épuisée
+    return variantsForSize.every(v => v.quantity === 0)
   }
-
-  // Get available sizes for selected color
-  const getAvailableSizes = () => {
-    if (!color) return []
-    return product.variants
-      ?.filter(v => v.color === color && v.quantity > 0)
-      .map(v => v.size) || []
-  }
-
-  const availableSizes = getAvailableSizes()
-  const available = getAvailableQuantity()
-  const canPurchase = product.is_active && size && color && available > 0
 
   // Image carousel state
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
@@ -205,69 +182,6 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
     }
   }, [isDragging, hasCompletedFirstTour, startX])
 
-  const handleAdd = async (goCheckout = false) => {
-    if (!size) {
-      toast({
-        title: "Choisissez une taille",
-        description: "Sélectionnez une taille avant d'ajouter au panier.",
-      })
-      return
-    }
-    if (!color) {
-      toast({
-        title: "Choisissez une couleur",
-        description: "Sélectionnez une couleur avant d'ajouter au panier.",
-      })
-      return
-    }
-
-    // Check availability for selected variant
-    const quantity = product.variants?.find(v => v.color === color && v.size === size)?.quantity ?? 0
-    if (quantity <= 0) {
-      toast({
-        title: "Stock épuisé",
-        description: "Cette variante n'est plus disponible.",
-      })
-      return
-    }
-
-    const finalPrice = product.promotional_price ?? product.price
-
-    try {
-      await addItem({
-        productId: product.id,
-        name: product.name,
-        price: finalPrice,
-        size,
-        color,
-        image: product.images?.[0],
-      })
-
-      toast({
-        title: goCheckout ? "Produit prêt à être commandé" : "Ajouté au panier",
-        description: `${product.name} (${size}) ${goCheckout ? "est prêt pour le paiement." : "a été ajouté à votre panier."}`,
-      })
-
-      if (goCheckout) {
-        router.push("/checkout")
-      }
-    } catch (error: any) {
-      if (error?.name === "INSUFFICIENT_STOCK" || error?.message?.includes("épuisée")) {
-        toast({
-          title: "Quantité disponible épuisée",
-          description: "Cette taille n'est plus disponible en stock.",
-          variant: "destructive",
-        })
-      } else {
-        toast({
-          title: "Impossible d'ajouter le produit",
-          description: "Veuillez réessayer dans quelques instants.",
-        })
-      }
-      console.error(error)
-    }
-  }
-
   const { appearance, stock } = useSettings()
   const currency = useCurrency()
 
@@ -280,13 +194,6 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
 
   // Gestion des animations d'entrée
   const animationDelay = index * 0.1
-  // Gestionnaire pour empêcher la navigation lors de la sélection de variants
-  const handleVariantClick = (e: React.MouseEvent, action: () => void) => {
-    e.preventDefault()
-    e.stopPropagation()
-    action()
-  }
-
   // Fonction pour obtenir la valeur hexadécimale d'une couleur
   const getColorHex = (colorName: string): string => {
     const colorMap: Record<string, string> = {
@@ -331,9 +238,9 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={() => router.push(`/products/${product.id}`)}
     >
-      <Link href={`/products/${product.id}`}>
-        <div className="relative">
+      <div className="relative">
           {/* IMAGE FIXE 4:5 AVEC PLACEHOLDER ÉLÉGANT */}
           <div
             className="relative bg-neutral-100 overflow-hidden group cursor-grab active:cursor-grabbing"
@@ -481,9 +388,9 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                 Basé sur la variante SÉLECTIONNÉE (couleur + taille), pas le stock total.
                 Le message n'apparaît que si cette variante précise a une quantité
                 inférieure ou égale au seuil d'affichage (Paramètres > Vente). */}
-            {available > 0 && available <= displayThreshold && (
+            {totalStock > 0 && totalStock <= displayThreshold && (
               <div className="absolute top-3 left-3 bg-[var(--color-accent)] text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
-                Plus que {available} disponible{available > 1 ? 's' : ''}
+                Plus que {totalStock} disponible{totalStock > 1 ? 's' : ''}
               </div>
             )}
 
@@ -496,7 +403,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
             )}
           </div>
         </div>
-      </Link>
+  
 
       {/* CONTENU COMPACT - TOUT ENTIÈREMENT COLLÉ */}
       <div className="p-4 pb-4 flex flex-col gap-2">
@@ -535,179 +442,42 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
           </span>
         )}
 
-        {/* SÉLECTEURS MINIMALISTES AVEC POPOVERS - COLLÉS AU PRIX */}
-        <div
-          className="flex gap-2"
-          onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-          }}
-        >
-          {/* POPOVER COULEURS */}
-          {(product.colors && product.colors.length > 0 && !product.colors.includes('aucune_couleur')) && (
-            <Popover onOpenChange={(open) => {
-              // Empêcher les événements au niveau popover
-              if (open) return
-            }}>
-              <PopoverTrigger asChild>
-                <button className="flex-1 flex items-center justify-between px-3 py-2 text-sm border border-neutral-300 rounded-md hover:border-neutral-400 hover:bg-neutral-50 transition-colors">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-4 h-4 rounded-full border border-neutral-300"
-                      style={{ backgroundColor: getColorHex(color) }}
-                    />
-                    <span className="text-neutral-700 font-medium">
-                      Couleur: {color}
-                    </span>
-                  </div>
-                  <ChevronDown size={16} className="text-neutral-500" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="w-64 p-3"
-                align="start"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                }}
-              >
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-sm text-neutral-900">Choisir une couleur</h4>
-                  <div className="grid grid-cols-4 gap-2">
-                    {product.colors.map((colorName) => {
-                      const isAvailable = product.variants?.some(v => v.color === colorName && v.quantity > 0)
-                      const colorHex = getColorHex(colorName)
-
-                      return (
-                        <button
-                          key={colorName}
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            setColor(colorName)
-                          }}
-                          disabled={!isAvailable}
-                          className={`relative w-12 h-12 rounded-full border-2 transition-all duration-200 ${
-                            color === colorName
-                              ? 'border-[var(--color-primary)] scale-110'
-                              : 'border-neutral-300 hover:border-neutral-400 hover:scale-105'
-                          } disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:border-neutral-300`}
-                          title={`${colorName}${!isAvailable ? ' (Indisponible)' : ''}`}
-                          style={{
-                            backgroundColor: colorHex,
-                            boxShadow: color === colorName
-                              ? `0 0 0 2px ${colorHex}, 0 0 0 4px #000000`
-                              : colorHex === '#FFFFFF'
-                                ? '0 0 0 1px #D1D5DB, inset 0 0 0 1px #F3F4F6'
-                                : 'none'
-                          }}
-                        >
-                          {/* Indicateur de sélection pour couleurs claires */}
-                          {color === colorName && colorHex === '#FFFFFF' && (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="w-2 h-2 bg-[var(--color-primary)] rounded-full"></div>
-                            </div>
-                          )}
-
-                          {/* Indicateur d'indisponibilité */}
-                          {!isAvailable && (
-                            <div className="absolute inset-0 bg-neutral-100 bg-opacity-75 rounded-full flex items-center justify-center">
-                              <div className="w-3 h-0.5 bg-neutral-400 rounded-full transform rotate-45"></div>
-                            </div>
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          )}
-
-          {/* POPOVER TAILLES */}
-          {(product.sizes && product.sizes.length > 0) && (
-            <Popover onOpenChange={(open) => {
-              // Empêcher les événements au niveau popover
-              if (open) return
-            }}>
-              <PopoverTrigger asChild>
-                <button className="flex-1 flex items-center justify-between px-3 py-2 text-sm border border-neutral-300 rounded-md hover:border-neutral-400 hover:bg-neutral-50 transition-colors">
-                  <span className="text-neutral-700 font-medium">
-                    Taille: {size || 'Aucune'}
+        {/* TAILLES DISPONIBLES SOUS FORME DE CERCLES */}
+        {(product.sizes && product.sizes.length > 0) && (
+          <div className="mt-3">
+            <p className="text-xs text-neutral-500 font-medium mb-2">Tailles</p>
+            <div className="flex flex-wrap gap-2">
+              {product.sizes.map((s) => {
+                const outOfStock = isSizeOutOfStock(s)
+                return (
+                  <span
+                    key={s}
+                    className={`w-8 h-8 rounded-full border relative flex items-center justify-center text-xs font-medium transition-colors ${
+                      outOfStock
+                        ? 'border-neutral-400 text-neutral-500 bg-neutral-100 opacity-80'
+                        : 'border-neutral-300 text-neutral-700 bg-white hover:border-neutral-400 hover:bg-neutral-50 cursor-pointer'
+                    }`}
+                    title={outOfStock ? `${s} - Épuisé` : s}
+                  >
+                    <>
+                    {s}
+                    {outOfStock && (
+                      <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <span className="border-t-2 border-current w-full opacity-90"></span>
+                      </span>
+                    )}
+                  </>
                   </span>
-                  <ChevronDown size={16} className="text-neutral-500" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="w-64 p-3"
-                align="end"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                }}
-              >
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-sm text-neutral-900">Choisir une taille</h4>
-                  <div className="grid grid-cols-3 gap-2">
-                    {product.sizes.map((s) => {
-                      const isAvailable = availableSizes.includes(s)
-                      return (
-                        <button
-                          key={s}
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            setSize(s)
-                          }}
-                          disabled={!isAvailable}
-                          className={`relative px-3 py-2 text-sm font-medium rounded border-2 transition-all duration-200 ${
-                            size === s
-                              ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white'
-                              : 'border-neutral-300 bg-white text-neutral-700 hover:border-neutral-400 hover:bg-neutral-50'
-                          } disabled:opacity-40 disabled:cursor-not-allowed disabled:text-neutral-400 disabled:border-neutral-200 disabled:hover:border-neutral-200 disabled:hover:bg-white`}
-                        >
-                          {s}
-                          {size === s && (
-                            <div className="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full border border-[var(--color-primary)]"></div>
-                          )}
-                          {!isAvailable && (
-                            <div className="absolute inset-0 bg-neutral-100 bg-opacity-75 rounded flex items-center justify-center">
-                              <div className="w-2 h-0.5 bg-neutral-400 rounded-full"></div>
-                            </div>
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  {availableSizes.length === 0 && color && (
-                    <div className="flex items-center gap-2 text-red-500 mt-2">
-                      <AlertCircle size={12} />
-                      <p className="text-xs">Aucune taille disponible pour "{color}"</p>
-                    </div>
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
-          )}
-        </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
-        {/* BOUTONS D'ACTION - COLLÉS AUX SÉLECTEURS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <button
-            onClick={(e) => handleVariantClick(e, () => handleAdd(false))}
-            disabled={!canPurchase}
-            className="w-full bg-[var(--color-primary)] text-white py-2.5 rounded-lg font-semibold hover:bg-[var(--color-primary-dark)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-          >
-            Ajouter
-          </button>
-          <button
-            onClick={(e) => handleVariantClick(e, () => handleAdd(true))}
-            disabled={!canPurchase}
-            className="w-full bg-[var(--color-secondary)] text-white py-2.5 rounded-lg font-semibold hover:bg-[var(--color-secondary-dark)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-          >
-            Acheter
-          </button>
-        </div>
+
+
+
+
       </div>
     </div>
   )
