@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase-admin"
 import { createClient } from "@/lib/supabase-server"
 import { NextResponse } from "next/server"
+import { verifyStockAvailability } from "@/lib/confirm-order-stock"
 
 // GET - Récupérer toutes les commandes (admin)
 export async function GET() {
@@ -156,41 +157,59 @@ export async function POST(request: Request) {
       }
     }
 
-    const { data: order, error } = await adminClient
-      .from("orders")
-      .insert([
-        {
-          customer_name,
-          customer_phone,
-          customer_email,
-          address,
-          postal_code,
-          city,
-          items,
-          total_amount: totalAmount,
-          delivery_fee: finalDeliveryFee,
-          notes,
-          status: "pending",
-          coupon_code: couponCode,
-          coupon_discount: couponDiscount,
-          free_shipping_from_coupon: freeShippingFromCoupon,
-          user_id: authUserId, // ID de l'utilisateur authentifié
-        },
-      ])
-      .select()
-      .single()
+    // T03 : Vérifier le stock AVANT de créer la commande
+    // Empêche de vendre un produit dont la réservation a expiré entre-temps
+    if (Array.isArray(items) && items.length > 0) {
+      const stockCheck = await verifyStockAvailability(
+        adminClient,
+        items.map((item: any) => ({
+          product_id: item.product_id,
+          size: item.size,
+          color: item.color,
+          quantity: Number(item.quantity),
+        }))
+      )
 
-    if (error) {
-      console.error('[orders] Insert error:', error)
-      throw error
+      if (!stockCheck.available) {
+        console.error("[v0] Stock insufficient for order creation:", stockCheck.insufficientItems)
+        return NextResponse.json(
+          {
+            error: "Stock insuffisant pour certains articles",
+            details: stockCheck.insufficientItems,
+          },
+          { status: 400 }
+        )
+      }
     }
 
-    // Libérer les réservations de panier
-    if (Array.isArray(reservations) && reservations.length > 0) {
-      await adminClient.from("cart_reservations").delete().in("id", reservations)
+    // T05 : Création de commande atomique (insertion commande + suppression réservations dans une transaction)
+    const reservationIds = Array.isArray(reservations) ? reservations : []
+    const { data: orderData, error: orderError } = await adminClient
+      .rpc("create_order_from_reservations", {
+        p_customer_name: customer_name,
+        p_customer_phone: customer_phone,
+        p_customer_email: customer_email || null,
+        p_address: address,
+        p_postal_code: postal_code,
+        p_city: city,
+        p_items: items,
+        p_total_amount: totalAmount,
+        p_delivery_fee: finalDeliveryFee,
+        p_notes: notes || null,
+        p_coupon_code: couponCode || null,
+        p_coupon_discount: couponDiscount,
+        p_free_shipping_from_coupon: freeShippingFromCoupon,
+        p_user_id: authUserId || null,
+        p_reservation_ids: reservationIds.length > 0 ? reservationIds : null,
+      })
+      .single() as { data: { order_id: string; success: boolean; error_message: string | null } | null; error: any }
+
+    if (orderError || !orderData?.success) {
+      console.error('[orders] Order creation error:', orderData?.error_message ?? orderError)
+      throw new Error(orderData?.error_message ?? 'Failed to create order')
     }
 
-    return NextResponse.json(order, { status: 201 })
+    return NextResponse.json({ id: orderData.order_id }, { status: 201 })
   } catch (error) {
     console.error("[v0] Order creation error:", error)
     return NextResponse.json({ error: "Failed to create order" }, { status: 500 })

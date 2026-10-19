@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase-admin"
 import { createClient } from "@/lib/supabase-server"
 import { NextResponse } from "next/server"
 import { adjustInventoryQuantity } from "@/lib/inventory"
+import { verifyStockAvailability } from "@/lib/confirm-order-stock"
 
 // Structure centralisée des transitions de statuts autorisées
 // SOURCE UNIQUE DE VÉRITÉ pour toutes les règles de transition
@@ -103,6 +104,23 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Order not found" }, { status: 404 })
     }
 
+
+    // T02 : Vérifier le stock AVANT de confirmer une commande (pending → confirmed)
+    if (status === "confirmed" && previousOrder.status === "pending") {
+      const items = Array.isArray(previousOrder.items) ? previousOrder.items : []
+      const stockCheck = await verifyStockAvailability(adminClient, items)
+
+      if (!stockCheck.available) {
+        console.error("[v0] Stock insufficient for order confirmation:", id, stockCheck.insufficientItems)
+        return NextResponse.json(
+          {
+            error: "Stock insuffisant pour confirmer la commande",
+            details: stockCheck.insufficientItems,
+          },
+          { status: 400 }
+        )
+      }
+    }
     // Forcer la mise à jour des métadonnées UNDO lors d'une annulation
     let finalCancelledAt = cancelled_at
     let finalCanUndoCancel = can_undo_cancel
@@ -144,35 +162,71 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     // Cas 3: UNDO temporaire d'annulation (remettre au statut précédent)
     // Maintenant géré automatiquement par getAllowedTransitions() + logique d'inventaire
+        // Cas 3: UNDO temporaire d'annulation (remettre au statut précédent)
+    // Maintenant géré automatiquement par getAllowedTransitions() + logique d'inventaire
     if (status === "pending" && previousOrder.status === "cancelled") {
       // UNDO autorisé (validation déjà faite par getAllowedTransitions)
       // Utiliser le statut précédent sauvegardé lors de l'annulation
       const actualTargetStatus = previousOrder.previous_status || "pending"
 
-      console.log("[v0] UNDO: restoring to previous status:", actualTargetStatus)
-
-      // Forcer le statut cible pour l'UNDO
-      updateData.status = actualTargetStatus
-      console.log("[v0] UNDO: changed target status to:", actualTargetStatus)
-
-      // Remettre le stock en réserve si nécessaire
+      // T04 : Vérifier le stock AVANT de réactiver la commande annulée
+      // Si le stock n'est plus disponible, rejeter l'UNDO pour éviter la survente
       if (inventoryRestored) {
+        const undoItems = Array.isArray(previousOrder.items) ? previousOrder.items : []
+        const stockCheck = await verifyStockAvailability(adminClient, undoItems)
+
+        if (!stockCheck.available) {
+          console.error("[v0] Stock insufficient for UNDO:", id, stockCheck.insufficientItems)
+          return NextResponse.json(
+            {
+              error: "Stock insuffisant pour réactiver cette commande",
+              details: stockCheck.insufficientItems,
+            },
+            { status: 400 }
+          )
+        }
+
         console.log("[v0] UNDO cancellation - removing inventory")
-        for (const item of items) {
+        for (const item of undoItems) {
           if (item.product_id && item.size && item.quantity) {
             const color = item.color || 'Standard'
-            console.log("[v0] Adjusting inventory:", item.product_id, item.size, color, "-", item.quantity)
+            console.log(
+              "[v0] Adjusting inventory:",
+              item.product_id,
+              item.size,
+              color,
+              "-",
+              item.quantity
+            )
             try {
-              await adjustInventoryQuantity(adminClient, item.product_id, item.size, color, -item.quantity)
+              await adjustInventoryQuantity(
+                adminClient,
+                item.product_id,
+                item.size,
+                color,
+                -item.quantity
+              )
             } catch (inventoryError) {
               console.error("[v0] Inventory adjustment failed:", inventoryError)
-              // Continue with other items but don't fail the entire operation
+              // Ne pas ignorer l'erreur : si la réservation échoue après vérification,
+              // c'est un problème critique qui doit bloquer l'UNDO
+              return NextResponse.json(
+                {
+                  error: "Échec de la réservation du stock lors de la réactivation",
+                  details: inventoryError instanceof Error ? inventoryError.message : String(inventoryError),
+                },
+                { status: 500 }
+              )
             }
           }
         }
         inventoryRestored = false
         updateData.inventory_restored = inventoryRestored
       }
+
+      // Forcer le statut cible pour l'UNDO
+      updateData.status = actualTargetStatus
+      console.log("[v0] UNDO: changed target status to:", actualTargetStatus)
 
       // Nettoyer automatiquement les métadonnées UNDO lors d'un UNDO réussi
       finalCanUndoCancel = false

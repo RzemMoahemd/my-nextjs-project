@@ -3,6 +3,12 @@ import { checkLowStock } from "./check-low-stock"
 
 type AdminClient = SupabaseClient<any, "public", any>
 
+interface AdjustInventoryResult {
+  new_quantity: number
+  success: boolean
+  error_message: string | null
+}
+
 export async function adjustInventoryQuantity(
   adminClient: AdminClient,
   productId: string,
@@ -10,42 +16,31 @@ export async function adjustInventoryQuantity(
   color: string,
   delta: number,
 ) {
-  const { data, error } = await adminClient.from("products").select("variants").eq("id", productId).single()
-  if (error || !data) {
-    throw new Error("Product not found")
+  // Appel atomique via RPC : la fonction PostgreSQL verrouille la ligne (FOR UPDATE)
+  // et refuse si le stock deviendrait négatif. Pas de race condition possible.
+  const { data, error } = await adminClient
+    .rpc("adjust_inventory_quantity", {
+      p_product_id: productId,
+      p_size: size,
+      p_color: color,
+      p_delta: delta,
+    })
+    .single()
+
+  if (error) {
+    throw error
   }
 
-  const variants = data.variants || []
-  const variantIndex = variants.findIndex((v: any) => v.size === size && v.color === color)
-  
-  if (variantIndex === -1) {
-    throw new Error("Variant not found")
-  }
+  const result = data as AdjustInventoryResult | null
 
-  const currentQuantity = Number(variants[variantIndex].quantity ?? 0)
-  const nextValue = currentQuantity + delta
-
-  if (nextValue < 0) {
-    throw new Error("Insufficient stock")
-  }
-
-  // Mettre à jour la quantité de la variante
-  variants[variantIndex].quantity = nextValue
-
-  // Calculer si le produit est toujours actif (au moins une variante avec stock > 0)
-  const hasStock = variants.some((v: any) => Number(v.quantity) > 0)
-
-  const { error: updateError } = await adminClient
-    .from("products")
-    .update({ variants })
-    .eq("id", productId)
-
-  if (updateError) {
-    throw updateError
+  if (!result?.success) {
+    throw new Error(result?.error_message ?? "Inventory adjustment failed")
   }
 
   // Recalculer les notifications de stock faible après chaque mouvement de stock
   await checkLowStock(adminClient, productId)
+
+  return result.new_quantity
 }
 
 export async function cleanupExpiredReservations(adminClient: AdminClient) {

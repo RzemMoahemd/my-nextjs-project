@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase-admin"
-import { adjustInventoryQuantity, cleanupExpiredReservations } from "@/lib/inventory"
+import { cleanupExpiredReservations } from "@/lib/inventory"
 
 export async function POST(request: Request) {
   try {
@@ -14,18 +14,26 @@ export async function POST(request: Request) {
     const adminClient = createAdminClient()
     await cleanupExpiredReservations(adminClient)
 
-    const { data: reservation, error } = await adminClient
+    const { data: reservation, error: fetchError } = await adminClient
       .from("cart_reservations")
       .select("*")
       .eq("id", reservation_id)
       .single()
 
-    if (error || !reservation) {
+    if (fetchError || !reservation) {
       return NextResponse.json({ error: "Reservation not found" }, { status: 404 })
     }
 
-    await adjustInventoryQuantity(adminClient, reservation.product_id, reservation.size, reservation.color || 'Standard', reservation.quantity)
-    await adminClient.from("cart_reservations").delete().eq("id", reservation_id)
+    // T05 : Libération atomique (restauration stock + suppression réservation dans une transaction)
+    const { data, error } = await adminClient
+      .rpc("release_cart_reservation", {
+        p_reservation_id: reservation_id,
+      })
+      .single() as { data: { success: boolean; error_message: string | null } | null; error: any }
+
+    if (error || !data?.success) {
+      throw new Error(data?.error_message ?? "Failed to release reservation")
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

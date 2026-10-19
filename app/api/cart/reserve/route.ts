@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase-admin"
-import { adjustInventoryQuantity, cleanupExpiredReservations } from "@/lib/inventory"
+import { cleanupExpiredReservations } from "@/lib/inventory"
 
 const RESERVATION_DURATION_MS = 15 * 60 * 1000
 
@@ -26,32 +26,27 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Quantity must be greater than zero" }, { status: 400 })
       }
 
-      await adjustInventoryQuantity(adminClient, product_id, size, variantColor, -quantity)
-
+      // T05 : Réservation atomique (stock + insertion réservation dans une transaction)
       const { data, error } = await adminClient
-        .from("cart_reservations")
-        .insert([
-          {
-            cart_id,
-            product_id,
-            size,
-            color: variantColor,
-            quantity,
-            expires_at: expiresAt,
-          },
-        ])
-        .select()
-        .single()
+        .rpc("reserve_cart_item", {
+          p_cart_id: cart_id,
+          p_product_id: product_id,
+          p_size: size,
+          p_color: variantColor,
+          p_quantity: quantity,
+          p_expires_at: expiresAt,
+        })
+        .single() as { data: { reservation_id: string; success: boolean; error_message: string | null } | null; error: any }
 
-      if (error || !data) {
-        throw error ?? new Error("Failed to create reservation")
+      if (error || !data?.success) {
+        throw new Error(data?.error_message ?? "Failed to create reservation")
       }
 
       return NextResponse.json(
         {
-          reservation_id: data.id,
-          quantity: data.quantity,
-          expires_at: data.expires_at,
+          reservation_id: data.reservation_id,
+          quantity,
+          expires_at: expiresAt,
         },
         { status: 201 },
       )
@@ -68,8 +63,16 @@ export async function POST(request: Request) {
     }
 
     if (quantity <= 0) {
-      await adjustInventoryQuantity(adminClient, product_id, size, currentReservation.color || 'Standard', currentReservation.quantity)
-      await adminClient.from("cart_reservations").delete().eq("id", reservation_id)
+      // T05 : Libération atomique (restauration stock + suppression réservation dans une transaction)
+      const { data: releaseData, error: releaseError } = await adminClient
+        .rpc("release_cart_reservation", {
+          p_reservation_id: reservation_id,
+        })
+        .single() as { data: { success: boolean; error_message: string | null } | null; error: any }
+
+      if (releaseError || !releaseData?.success) {
+        throw new Error(releaseData?.error_message ?? "Failed to release reservation")
+      }
 
       return NextResponse.json({
         reservation_id,
@@ -80,13 +83,30 @@ export async function POST(request: Request) {
 
     const delta = quantity - currentReservation.quantity
     if (delta !== 0) {
-      await adjustInventoryQuantity(adminClient, product_id, size, currentReservation.color || 'Standard', -delta)
+      // T05 : Mise à jour atomique (stock + mise à jour réservation dans une transaction)
+      const { data: updateData, error: updateError } = await adminClient
+        .rpc("update_cart_reservation_quantity", {
+          p_reservation_id: reservation_id,
+          p_new_quantity: quantity,
+          p_expires_at: expiresAt,
+        })
+        .single() as { data: { success: boolean; error_message: string | null } | null; error: any }
+
+      if (updateError || !updateData?.success) {
+        throw new Error(updateData?.error_message ?? "Failed to update reservation")
+      }
+
+      return NextResponse.json({
+        reservation_id,
+        quantity,
+        expires_at: expiresAt,
+      })
     }
 
+    // Pas de changement de quantité, juste mettre à jour l'expiration
     const { data: updated, error: updateError } = await adminClient
       .from("cart_reservations")
       .update({
-        quantity,
         expires_at: expiresAt,
         updated_at: new Date().toISOString(),
       })
