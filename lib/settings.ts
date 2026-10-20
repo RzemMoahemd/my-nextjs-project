@@ -90,6 +90,9 @@ export interface AllSettings {
   appearance: AppearanceConfig
   delivery_fee: { amount: number }
   free_shipping: { threshold: number; enabled: boolean }
+  // Durée de réservation de panier (en minutes)
+  // 0 = réservation désactivée (stock immédiat)
+  reservation_duration_minutes: number
 }
 
 // =================================================
@@ -154,6 +157,8 @@ export const DEFAULT_SETTINGS: AllSettings = {
   },
   delivery_fee: { amount: 7 },
   free_shipping: { threshold: 140, enabled: true },
+  // Durée de réservation par défaut (15 minutes)
+  reservation_duration_minutes: 15,
 }
 
 // Clés modifiables via l'API (liste blanche)
@@ -168,6 +173,8 @@ export const WRITABLE_SETTING_KEYS: (keyof AllSettings)[] = [
   "appearance",
   "delivery_fee",
   "free_shipping",
+  // Réservation de panier
+  "reservation_duration_minutes",
 ]
 
 // =================================================

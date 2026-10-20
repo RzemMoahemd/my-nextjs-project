@@ -125,11 +125,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     items.forEach((item) => {
       if (!item.expiresAt) return
-      const delay = new Date(item.expiresAt).getTime() - Date.now()
+      // Parser le timestamp de expiration de manière défensive
+      const expiresAtMs = Date.parse(item.expiresAt)
+      if (isNaN(expiresAtMs)) {
+        console.warn(`[cart] expiresAt invalide pour l'item : ${item.reservationId}`, item.expiresAt)
+        return
+      }
+      const now = Date.now()
+      const delay = expiresAtMs - now
+
       if (delay <= 0) {
-        handleExpiration(item)
+        // Déjà expiré : libérer immédiatement mais sans forcer la suppression synchrone
+        // La tâche d'expiration sera traitée dans le prochain tick
+        timersRef.current[item.reservationId] = setTimeout(() => {
+          handleExpiration(item)
+        }, 0)
       } else {
-        timersRef.current[item.reservationId] = setTimeout(() => handleExpiration(item), delay)
+        timersRef.current[item.reservationId] = setTimeout(() => {
+          handleExpiration(item)
+        }, delay)
       }
     })
 

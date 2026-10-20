@@ -43,6 +43,14 @@ export async function adjustInventoryQuantity(
   return result.new_quantity
 }
 
+export async function getReservationDurationMs(allSettings: any): Promise<number> {
+  return (Number(allSettings?.reservation_duration_minutes) || 15) * 60000
+}
+
+export async function getReservationDurationMsCached(allSettings: any): Promise<number> {
+  return (Number(allSettings?.reservation_duration_minutes) || 15) * 60000
+}
+
 export async function cleanupExpiredReservations(adminClient: AdminClient) {
   const now = new Date().toISOString()
   const { data: expired, error } = await adminClient

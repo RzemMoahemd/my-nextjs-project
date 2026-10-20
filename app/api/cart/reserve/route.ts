@@ -1,8 +1,19 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase-admin"
-import { cleanupExpiredReservations } from "@/lib/inventory"
+import { cleanupExpiredReservations, getReservationDurationMs, getReservationDurationMsCached } from "@/lib/inventory"
+import { getAllSettings } from "@/lib/settings"
 
-const RESERVATION_DURATION_MS = 15 * 60 * 1000
+// Simple cache in-memory (single Node process); not for distributed workers
+let cachedDurationMs: number = 15
+
+async function getEffectiveReservationDurationMs(): Promise<number> {
+  if (cachedDurationMs !== 15) return cachedDurationMs
+
+  const adminClient = createAdminClient()
+  const allSettings = await getAllSettings(adminClient)
+  cachedDurationMs = await getReservationDurationMs(allSettings)
+  return cachedDurationMs
+}
 
 export async function POST(request: Request) {
   try {
@@ -17,9 +28,14 @@ export async function POST(request: Request) {
     const variantColor = color || 'Standard'
 
     const adminClient = createAdminClient()
-    await cleanupExpiredReservations(adminClient)
 
-    const expiresAt = new Date(Date.now() + RESERVATION_DURATION_MS).toISOString()
+    // Durée de réservation configurable (0 = désactivée, cette réservation n'est pas réservée, stock immédiat)
+    const reservationDurationMs = await getEffectiveReservationDurationMs()
+    const expiresAt = reservationDurationMs > 0
+      ? new Date(Date.now() + reservationDurationMs).toISOString()
+      : null
+
+    await cleanupExpiredReservations(adminClient)
 
     if (!reservation_id) {
       if (quantity <= 0) {

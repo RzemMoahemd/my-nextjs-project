@@ -14,6 +14,8 @@ export default function AdminSettingsAvancePage() {
   const [maintenanceEnabled, setMaintenanceEnabled] = useState(false)
   const [maintenanceMessage, setMaintenanceMessage] = useState("")
 
+  const [reservationDurationMinutes, setReservationDurationMinutes] = useState(15)
+
   const [seoTitle, setSeoTitle] = useState("")
   const [seoDescription, setSeoDescription] = useState("")
   const [seoOgImage, setSeoOgImage] = useState("")
@@ -69,6 +71,12 @@ export default function AdminSettingsAvancePage() {
           setSeoTitle(data.seo?.title ?? "")
           setSeoDescription(data.seo?.description ?? "")
           setSeoOgImage(data.seo?.og_image ?? "")
+        }
+
+        const resAdv = await fetch("/api/settings/advanced")
+        if (resAdv.ok) {
+          const adv = await resAdv.json()
+          setReservationDurationMinutes(Number(adv.reservation_duration_minutes) || 15)
         }
       } catch (error) {
         console.error("[settings] load error:", error)
@@ -149,6 +157,51 @@ export default function AdminSettingsAvancePage() {
               rows={2}
               className={inputClass}
             />
+          </div>
+        </div>
+      </SettingsCard>
+
+      {/* Réservation */}
+      <SettingsCard
+        icon={<Wrench size={20} className="text-neutral-700" />}
+        title="Réservation de panier"
+        description="Configurez la durée de réserve des articles dans le panier avant d'être facturés."
+        footer={
+          <SettingsButton
+            loading={savingMaintenance}
+            onClick={() =>
+              save(
+                "reservation_duration_minutes",
+                { reservation_duration_minutes: reservationDurationMinutes },
+                setSavingMaintenance,
+                "Paramètres de réservation enregistrés."
+              )
+            }
+          >
+            Enregistrer
+          </SettingsButton>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
+              Durée de réservation (minutes)
+            </label>
+            <input
+              type="number"
+              min="0"
+              max="1440"
+              value={reservationDurationMinutes}
+              onChange={(e) => setReservationDurationMinutes(Number(e.target.value))}
+              className={inputClass}
+            />
+            <p className="text-xs text-neutral-400 mt-1">
+              {reservationDurationMinutes === 0
+                ? "Désactivé : le stock est déduit immédiatement, sans délai d'expiration."
+                : reservationDurationMinutes === 15
+                  ? "15 minutes"
+                  : `${reservationDurationMinutes} minutes`}
+            </p>
           </div>
         </div>
       </SettingsCard>
