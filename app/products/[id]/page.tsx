@@ -28,7 +28,7 @@ export default function ProductDetail() {
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
   const [user, setUser] = useState<any>(null)
   const favorite = isFavorite(params.id as string)
-  const { shipping_msg, appearance } = useSettings()
+  const { shipping_msg, appearance, stock } = useSettings()
   const currency = useCurrency()
 
   useEffect(() => {
@@ -71,14 +71,20 @@ export default function ProductDetail() {
       const data = await res.json()
       setProduct(data)
       
-      // Sélectionner la première couleur disponible
-      if (data.colors && data.colors.length > 0) {
-        setSelectedColor(data.colors[0])
-      }
-      
-      // Sélectionner la première taille disponible
-      if (data.sizes && data.sizes.length > 0) {
-        setSelectedSize(data.sizes[0])
+      // Sélectionner la première variante disponible (taille + couleur avec stock)
+      if (data.variants && data.variants.length > 0) {
+        const availableVariant = data.variants.find((v: any) => v.quantity > 0)
+        if (availableVariant) {
+          setSelectedColor(availableVariant.color)
+          setSelectedSize(availableVariant.size)
+        }
+      } else {
+        if (data.colors && data.colors.length > 0) {
+          setSelectedColor(data.colors[0])
+        }
+        if (data.sizes && data.sizes.length > 0) {
+          setSelectedSize(data.sizes[0])
+        }
       }
 
       // Fetch related products
@@ -114,6 +120,21 @@ export default function ProductDetail() {
     return availableSizes.has(size)
   }
 
+  // Calculer les couleurs disponibles pour la taille sélectionnée
+  const availableColors = useMemo(() => {
+    if (!product || !selectedSize) return new Set<string>()
+    const colorsForSize = product.variants
+      ?.filter(v => v.size === selectedSize && v.quantity > 0)
+      .map(v => v.color) ?? []
+    return new Set(colorsForSize)
+  }, [product, selectedSize])
+
+  // Vérifier si une couleur est disponible pour la taille sélectionnée
+  const isColorAvailable = (color: string) => {
+    if (!selectedSize) return true
+    return availableColors.has(color)
+  }
+
   // Ajuster la taille sélectionnée si elle n'est pas disponible pour la couleur actuelle
   useEffect(() => {
     if (!selectedColor || !selectedSize) return
@@ -123,6 +144,16 @@ export default function ProductDetail() {
       setSelectedSize(firstAvailableSize || null)
     }
   }, [selectedColor, availableSizes])
+
+  // Ajuster la couleur sélectionnée si elle n'est pas disponible pour la taille actuelle
+  useEffect(() => {
+    if (!selectedSize || !selectedColor) return
+    if (!isColorAvailable(selectedColor)) {
+      // Si la couleur sélectionnée n'est pas disponible, sélectionner la première couleur disponible
+      const firstAvailableColor = Array.from(availableColors)[0]
+      setSelectedColor(firstAvailableColor || null)
+    }
+  }, [selectedSize, availableColors])
 
   const canPurchase = Boolean(product?.is_active && selectedSize && selectedColor && availableQuantity > 0)
 
@@ -422,21 +453,31 @@ export default function ProductDetail() {
                 <div>
                   <h3 className="font-semibold text-neutral-900 mb-3">Couleur</h3>
                   <div className="flex flex-wrap gap-3">
-                    {product.colors.map((colorName) => (
-                      <button
-                        key={colorName}
-                        onClick={() => setSelectedColor(colorName)}
+                    {product.colors.map((colorName) => {
+                      const isAvailable = isColorAvailable(colorName)
+                      return (
+                        <button
+                          key={colorName}
+                        onClick={() => isAvailable && setSelectedColor(colorName)}
+                        disabled={!isAvailable}
                         className={`px-6 py-2 rounded-lg border-2 font-semibold transition ${
                           selectedColor === colorName
                             ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-white"
+                            : !isAvailable
+                            ? "border-neutral-200 bg-neutral-100 text-neutral-400 cursor-not-allowed line-through"
                             : "border-neutral-200 text-neutral-900 hover:border-[var(--color-primary)]"
                         }`}
                       >
                         {colorName}
                       </button>
-                    ))}
+                    )})}
                   </div>
                 </div>
+              )}
+              {selectedSize && (
+                <p className="text-sm text-neutral-500 mt-2">
+                  Les couleurs barrées ne sont pas disponibles pour la taille {selectedSize}
+                </p>
               )}
 
               {/* Sizes */}
@@ -488,7 +529,13 @@ export default function ProductDetail() {
                 }
               >
                 {product.is_active && availableQuantity > 0 ? (
-                  <p className="font-semibold">Disponible</p>
+                  <>
+                    {stock?.low_stock_display_threshold != null && availableQuantity > 0 && availableQuantity <= stock.low_stock_display_threshold ? (
+                      <p className="font-semibold">Plus que {availableQuantity} disponibles</p>
+                    ) : (
+                      <p className="font-semibold">Disponible</p>
+                    )}
+                  </>
                 ) : (
                   <p className="font-semibold">Actuellement indisponible</p>
                 )}
