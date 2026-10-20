@@ -3,6 +3,22 @@ import { checkLowStock } from "./check-low-stock"
 
 type AdminClient = SupabaseClient<any, "public", any>
 
+// Les fonctions SQL T05 utilisent plusieurs `RETURN QUERY` (un par branche d'erreur).
+// postgREST renvoie donc TOUJOURS un tableau de N lignes, jamais une seule ligne.
+// Ne JAMAIS appeler .single() sur ces RPC : on extrait la ligne significative.
+// Pour reserve/create : la ligne avec l'id non null. Pour les autres : success === true,
+// sinon la premiere ligne (qui contient error_message).
+export function pickRpcRow<T>(rows: T | T[] | null, idKeys: (keyof T)[] = []): T | undefined {
+  const arr = Array.isArray(rows) ? rows : rows ? [rows] : []
+  if (arr.length === 0) return undefined
+  if (idKeys.length > 0) {
+    const withId = arr.find((r) => r && idKeys.some((k) => (r as any)[k] != null))
+    if (withId) return withId
+  }
+  const ok = arr.find((r) => r && (r as any).success === true)
+  return ok ?? arr[0]
+}
+
 interface AdjustInventoryResult {
   new_quantity: number
   success: boolean
@@ -44,11 +60,11 @@ export async function adjustInventoryQuantity(
 }
 
 export async function getReservationDurationMs(allSettings: any): Promise<number> {
-  return (Number(allSettings?.reservation_duration_minutes) || 15) * 60000
+  return (Number.isFinite(Number(allSettings?.reservation_duration_minutes)) ? Number(allSettings.reservation_duration_minutes) : 15) * 60000
 }
 
 export async function getReservationDurationMsCached(allSettings: any): Promise<number> {
-  return (Number(allSettings?.reservation_duration_minutes) || 15) * 60000
+  return (Number.isFinite(Number(allSettings?.reservation_duration_minutes)) ? Number(allSettings.reservation_duration_minutes) : 15) * 60000
 }
 
 export async function cleanupExpiredReservations(adminClient: AdminClient) {

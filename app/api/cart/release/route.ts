@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase-admin"
-import { cleanupExpiredReservations } from "@/lib/inventory"
+import { cleanupExpiredReservations, pickRpcRow } from "@/lib/inventory"
 
 export async function POST(request: Request) {
   try {
@@ -24,12 +24,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Reservation not found" }, { status: 404 })
     }
 
-    // T05 : Libération atomique (restauration stock + suppression réservation dans une transaction)
-    const { data, error } = await adminClient
-      .rpc("release_cart_reservation", {
-        p_reservation_id: reservation_id,
-      })
-      .single() as { data: { success: boolean; error_message: string | null } | null; error: any }
+    // T05 : Libération atomique (fonction SQL multi-RETURN QUERY -> tableau, pas .single())
+    const { data: releaseRows, error } = await adminClient.rpc("release_cart_reservation", {
+      p_reservation_id: reservation_id,
+    })
+
+    const data = pickRpcRow(
+      releaseRows as { success: boolean; error_message: string | null }[] | null,
+    )
 
     if (error || !data?.success) {
       throw new Error(data?.error_message ?? "Failed to release reservation")
@@ -41,4 +43,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unable to release reservation" }, { status: 500 })
   }
 }
-

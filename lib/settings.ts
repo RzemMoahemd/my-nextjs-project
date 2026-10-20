@@ -182,6 +182,8 @@ export const WRITABLE_SETTING_KEYS: (keyof AllSettings)[] = [
 // =================================================
 
 // Lecture de tous les paramètres (fusionne BD + défauts)
+// Gère les valeurs scalaires (ex: reservation_duration_minutes = number)
+// ET les valeurs objets (ex: store_info = {...} fusionné).
 export async function getAllSettings(adminClient: SupabaseClient): Promise<AllSettings> {
   const { data, error } = await adminClient.from("settings").select("key, value")
   if (error || !data) {
@@ -191,8 +193,12 @@ export async function getAllSettings(adminClient: SupabaseClient): Promise<AllSe
 
   const result: Record<string, any> = JSON.parse(JSON.stringify(DEFAULT_SETTINGS))
   for (const row of data) {
-    if (row.key && row.value && typeof row.value === "object") {
+    if (!row.key || row.value === undefined || row.value === null) continue
+    if (typeof row.value === "object" && !Array.isArray(row.value)) {
       result[row.key] = { ...(result[row.key] || {}), ...row.value }
+    } else {
+      // Valeur scalaire (number, string, boolean) : remplace le défaut
+      result[row.key] = row.value
     }
   }
   return result as AllSettings

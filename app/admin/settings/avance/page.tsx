@@ -8,6 +8,7 @@ import { Wrench, Search, X } from "lucide-react"
 export default function AdminSettingsAvancePage() {
   const [loading, setLoading] = useState(true)
   const [savingMaintenance, setSavingMaintenance] = useState(false)
+  const [savingReservation, setSavingReservation] = useState(false)
   const [savingSeo, setSavingSeo] = useState(false)
   const [ogImageUploading, setOgImageUploading] = useState(false)
 
@@ -76,7 +77,10 @@ export default function AdminSettingsAvancePage() {
         const resAdv = await fetch("/api/settings/advanced")
         if (resAdv.ok) {
           const adv = await resAdv.json()
-          setReservationDurationMinutes(Number(adv.reservation_duration_minutes) || 15)
+          const raw = adv.reservation_duration_minutes
+          // 0 est une valeur valide (désactivé) : ne pas utiliser `|| 15`
+          const parsed = raw === undefined || raw === null || raw === "" ? 15 : Number(raw)
+          setReservationDurationMinutes(Number.isFinite(parsed) ? parsed : 15)
         }
       } catch (error) {
         console.error("[settings] load error:", error)
@@ -102,6 +106,28 @@ export default function AdminSettingsAvancePage() {
       toast({ title: "Erreur", description: "Impossible d'enregistrer ce paramètre.", variant: "destructive" })
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function saveAdvanced(successMsg: string) {
+    setSavingReservation(true)
+    try {
+      const res = await fetch("/api/settings/advanced", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // L'API avancée attend un scalaire plat, PAS un objet imbriqué
+        body: JSON.stringify({ reservation_duration_minutes: reservationDurationMinutes }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Save failed")
+      }
+      toast({ title: "Paramètre enregistré", description: successMsg })
+    } catch (error) {
+      console.error("[settings] save advanced error:", error)
+      toast({ title: "Erreur", description: "Impossible d'enregistrer ce paramètre.", variant: "destructive" })
+    } finally {
+      setSavingReservation(false)
     }
   }
 
@@ -168,15 +194,8 @@ export default function AdminSettingsAvancePage() {
         description="Configurez la durée de réserve des articles dans le panier avant d'être facturés."
         footer={
           <SettingsButton
-            loading={savingMaintenance}
-            onClick={() =>
-              save(
-                "reservation_duration_minutes",
-                { reservation_duration_minutes: reservationDurationMinutes },
-                setSavingMaintenance,
-                "Paramètres de réservation enregistrés."
-              )
-            }
+            loading={savingReservation}
+            onClick={() => saveAdvanced("Paramètres de réservation enregistrés.")}
           >
             Enregistrer
           </SettingsButton>

@@ -5,6 +5,7 @@ export async function POST(request: Request) {
   try {
     const adminClient = createAdminClient()
 
+    // cleanup_cart_reservations ne renvoie qu'UNE ligne -> .single() OK ici.
     const result = await adminClient
       .rpc("cleanup_cart_reservations")
       .single() as unknown

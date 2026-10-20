@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase-admin"
 import { createClient } from "@/lib/supabase-server"
 import { NextResponse } from "next/server"
 import { verifyStockAvailability } from "@/lib/confirm-order-stock"
+import { pickRpcRow } from "@/lib/inventory"
 
 // GET - Récupérer toutes les commandes (admin)
 export async function GET() {
@@ -182,9 +183,9 @@ export async function POST(request: Request) {
       }
     }
 
-    // T05 : Création de commande atomique (insertion commande + suppression réservations dans une transaction)
+    // T05 : Création de commande atomique (fonction SQL multi-RETURN QUERY -> tableau, pas .single())
     const reservationIds = Array.isArray(reservations) ? reservations : []
-    const { data: orderData, error: orderError } = await adminClient
+    const { data: orderRows, error: orderError } = await adminClient
       .rpc("create_order_from_reservations", {
         p_customer_name: customer_name,
         p_customer_phone: customer_phone,
@@ -202,7 +203,11 @@ export async function POST(request: Request) {
         p_user_id: authUserId || null,
         p_reservation_ids: reservationIds.length > 0 ? reservationIds : null,
       })
-      .single() as { data: { order_id: string; success: boolean; error_message: string | null } | null; error: any }
+
+    const orderData = pickRpcRow(
+      orderRows as { order_id: string | null; success: boolean; error_message: string | null }[] | null,
+      ["order_id"],
+    )
 
     if (orderError || !orderData?.success) {
       console.error('[orders] Order creation error:', orderData?.error_message ?? orderError)

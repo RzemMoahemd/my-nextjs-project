@@ -1,17 +1,25 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase-admin"
-import { cleanupExpiredReservations, getReservationDurationMs, getReservationDurationMsCached } from "@/lib/inventory"
+import { cleanupExpiredReservations, getReservationDurationMs, pickRpcRow } from "@/lib/inventory"
 import { getAllSettings } from "@/lib/settings"
 
-// Simple cache in-memory (single Node process); not for distributed workers
-let cachedDurationMs: number = 15
+// Cache en mémoire avec TTL court : évite une lecture settings à chaque ajout panier
+// tout en reflétant un changement admin en < 60s. Ne pas utiliser de sentinelle
+// égale à une valeur valide (15) : on utilise null + timestamp.
+let cachedDurationMs: number | null = null
+let cachedAtMs = 0
+const CACHE_TTL_MS = 60 * 1000
 
 async function getEffectiveReservationDurationMs(): Promise<number> {
-  if (cachedDurationMs !== 15) return cachedDurationMs
+  const now = Date.now()
+  if (cachedDurationMs !== null && now - cachedAtMs < CACHE_TTL_MS) {
+    return cachedDurationMs
+  }
 
   const adminClient = createAdminClient()
   const allSettings = await getAllSettings(adminClient)
   cachedDurationMs = await getReservationDurationMs(allSettings)
+  cachedAtMs = now
   return cachedDurationMs
 }
 
@@ -37,22 +45,70 @@ export async function POST(request: Request) {
 
     await cleanupExpiredReservations(adminClient)
 
+    // Anti-double-clic serveur : si ce panier a DÉJÀ une réservation pour cette
+    // variante, on la réutilise au lieu d'en créer une 2e. Couvre les cas où
+    // 2 requêtes "créer" arrivent avant que le front ait reçu le 1er reservation_id
+    // (2 onglets, double-clic avant le verrou front, retry réseau...).
+    if (!reservation_id) {
+      const { data: existingRows } = await adminClient
+        .from("cart_reservations")
+        .select("*")
+        .eq("cart_id", cart_id)
+        .eq("product_id", product_id)
+        .eq("size", size)
+        .eq("color", variantColor)
+        .limit(1)
+
+      const existingRow = Array.isArray(existingRows) ? existingRows[0] : null
+      if (existingRow) {
+        const wanted = quantity > 0 ? existingRow.quantity + quantity : existingRow.quantity
+        // Mettre à jour la réservation existante (delta = quantity)
+        const { data: updateRows, error: updateError } = await adminClient.rpc("update_cart_reservation_quantity", {
+          p_reservation_id: existingRow.id,
+          p_new_quantity: wanted,
+          p_expires_at: expiresAt,
+        })
+
+        const updateData = pickRpcRow(
+          updateRows as { success: boolean; error_message: string | null }[] | null,
+        )
+
+        if (updateError || !updateData?.success) {
+          throw new Error(updateData?.error_message ?? "Failed to update reservation")
+        }
+
+        return NextResponse.json(
+          {
+            reservation_id: existingRow.id,
+            quantity: wanted,
+            expires_at: expiresAt,
+          },
+          { status: 200 },
+        )
+      }
+    }
+
     if (!reservation_id) {
       if (quantity <= 0) {
         return NextResponse.json({ error: "Quantity must be greater than zero" }, { status: 400 })
       }
 
       // T05 : Réservation atomique (stock + insertion réservation dans une transaction)
-      const { data, error } = await adminClient
-        .rpc("reserve_cart_item", {
-          p_cart_id: cart_id,
-          p_product_id: product_id,
-          p_size: size,
-          p_color: variantColor,
-          p_quantity: quantity,
-          p_expires_at: expiresAt,
-        })
-        .single() as { data: { reservation_id: string; success: boolean; error_message: string | null } | null; error: any }
+      // NOTE : la fonction SQL fait 3x `RETURN QUERY` (une par branche) -> postgREST
+      // renvoie TOUJOURS un tableau de 3 lignes. Ne JAMAIS utiliser .single() ici.
+      const { data: reserveRows, error } = await adminClient.rpc("reserve_cart_item", {
+        p_cart_id: cart_id,
+        p_product_id: product_id,
+        p_size: size,
+        p_color: variantColor,
+        p_quantity: quantity,
+        p_expires_at: expiresAt,
+      })
+
+      const data = pickRpcRow(
+        reserveRows as { reservation_id: string | null; success: boolean; error_message: string | null }[] | null,
+        ["reservation_id"],
+      )
 
       if (error || !data?.success) {
         throw new Error(data?.error_message ?? "Failed to create reservation")
@@ -80,11 +136,14 @@ export async function POST(request: Request) {
 
     if (quantity <= 0) {
       // T05 : Libération atomique (restauration stock + suppression réservation dans une transaction)
-      const { data: releaseData, error: releaseError } = await adminClient
-        .rpc("release_cart_reservation", {
-          p_reservation_id: reservation_id,
-        })
-        .single() as { data: { success: boolean; error_message: string | null } | null; error: any }
+      // (fonction SQL multi-RETURN QUERY -> tableau, pas .single())
+      const { data: releaseRows, error: releaseError } = await adminClient.rpc("release_cart_reservation", {
+        p_reservation_id: reservation_id,
+      })
+
+      const releaseData = pickRpcRow(
+        releaseRows as { success: boolean; error_message: string | null }[] | null,
+      )
 
       if (releaseError || !releaseData?.success) {
         throw new Error(releaseData?.error_message ?? "Failed to release reservation")
@@ -100,13 +159,16 @@ export async function POST(request: Request) {
     const delta = quantity - currentReservation.quantity
     if (delta !== 0) {
       // T05 : Mise à jour atomique (stock + mise à jour réservation dans une transaction)
-      const { data: updateData, error: updateError } = await adminClient
-        .rpc("update_cart_reservation_quantity", {
-          p_reservation_id: reservation_id,
-          p_new_quantity: quantity,
-          p_expires_at: expiresAt,
-        })
-        .single() as { data: { success: boolean; error_message: string | null } | null; error: any }
+      // (fonction SQL multi-RETURN QUERY -> tableau, pas .single())
+      const { data: updateRows, error: updateError } = await adminClient.rpc("update_cart_reservation_quantity", {
+        p_reservation_id: reservation_id,
+        p_new_quantity: quantity,
+        p_expires_at: expiresAt,
+      })
+
+      const updateData = pickRpcRow(
+        updateRows as { success: boolean; error_message: string | null }[] | null,
+      )
 
       if (updateError || !updateData?.success) {
         throw new Error(updateData?.error_message ?? "Failed to update reservation")

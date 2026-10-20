@@ -89,6 +89,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [discount, setDiscount] = useState<number>(0)
   const [freeShipping, setFreeShipping] = useState<boolean>(false)
   const timersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  // Verrou anti-double-clic : une seule requête serveur à la fois par variante.
+  // Évite que 2 clics rapides créent 2 réservations (stock débité 2x, 1 seule affichée).
+  const pendingRef = useRef<Set<string>>(new Set())
+  // Miroir synchrone du panier : setItems est asynchrone, donc 2 clics rapides
+  // verraient le même vieux state. Ce ref donne toujours la dernière valeur.
+  const itemsRef = useRef<CartItem[]>([])
+  const setItemsSync = (updater: CartItem[] | ((prev: CartItem[]) => CartItem[])) => {
+    const next = typeof updater === "function" ? (updater as (p: CartItem[]) => CartItem[])(itemsRef.current) : updater
+    itemsRef.current = next
+    setItems(next)
+  }
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -96,7 +107,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try {
       const storedCart = window.localStorage.getItem(STORAGE_KEY)
       if (storedCart) {
-        setItems(JSON.parse(storedCart))
+        const parsed = JSON.parse(storedCart) as CartItem[]
+        itemsRef.current = parsed
+        setItems(parsed)
       }
     } catch (error) {
       console.error("[cart] failed to load cart", error)
@@ -160,7 +173,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     } catch {
       // ignore
     }
-    setItems((prev) => prev.filter((p) => p.reservationId !== item.reservationId))
+    setItemsSync((prev) => prev.filter((p) => p.reservationId !== item.reservationId))
     toast({
       title: "Réservation expirée",
       description: `${item.name} (${item.size}) est revenu en stock.`,
@@ -170,12 +183,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const addItem = async (payload: AddItemPayload) => {
     if (!cartId) return
     const quantityToAdd = payload.quantity ?? 1
+    const lockKey = `${payload.productId}::${payload.size}::${payload.color ?? ""}`
 
-    // Trouver l'item existant
-    const existing = items.find((item) => item.productId === payload.productId && item.size === payload.size)
-    const targetQuantity = (existing?.quantity ?? 0) + quantityToAdd
+    // Double-clic : ignore le 2e appel tant que le 1er n'a pas répondu.
+    // Sans ça, 2 requêtes "créer réservation" partent en parallèle :
+    // stock débité 2x côté serveur, mais une seule ligne affichée dans le panier.
+    if (pendingRef.current.has(lockKey)) return
+    pendingRef.current.add(lockKey)
 
     try {
+      // itemsRef est toujours à jour (setItems est asynchrone, 2 clics rapides
+      // verraient sinon le même vieux state et créeraient 2 réservations).
+      const existing = itemsRef.current.find((item) => item.productId === payload.productId && item.size === payload.size)
+      const targetQuantity = (existing?.quantity ?? 0) + quantityToAdd
+
       const reservation = await reserveRequest({
         cartId,
         productId: payload.productId,
@@ -185,7 +206,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         reservationId: existing?.reservationId,
       })
 
-      setItems((prev) => {
+      setItemsSync((prev) => {
         const filtered = prev.filter((item) => !(item.productId === payload.productId && item.size === payload.size))
         return [
           ...filtered,
@@ -209,14 +230,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
         throw stockError
       }
       throw error
+    } finally {
+      pendingRef.current.delete(lockKey)
     }
   }
 
   const removeItem = async (productId: string, size: string) => {
-    const target = items.find((item) => item.productId === productId && item.size === size)
+    const target = itemsRef.current.find((item) => item.productId === productId && item.size === size)
     if (!target) return
     await releaseRequest(target.reservationId)
-    setItems((prev) => prev.filter((item) => item.reservationId !== target.reservationId))
+    setItemsSync((prev) => prev.filter((item) => item.reservationId !== target.reservationId))
   }
 
   const updateQuantity = async (productId: string, size: string, quantity: number) => {
@@ -226,7 +249,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
 
     // Trouver l'item cible
-    const target = items.find((item) => item.productId === productId && item.size === size)
+    const target = itemsRef.current.find((item) => item.productId === productId && item.size === size)
     if (!target) return
 
     try {
@@ -239,7 +262,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         reservationId: target.reservationId,
       })
 
-      setItems((prev) =>
+      setItemsSync((prev) =>
         prev.map((item) =>
           item.reservationId === target.reservationId
             ? { ...item, quantity: reservation.quantity, expiresAt: reservation.expires_at }
@@ -279,8 +302,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }
 
   const clearCart = async () => {
-    await Promise.allSettled(items.map((item) => releaseRequest(item.reservationId)))
-    setItems([])
+    await Promise.allSettled(itemsRef.current.map((item) => releaseRequest(item.reservationId)))
+    setItemsSync([])
     // Réinitialiser aussi le coupon lorsqu'on vide le panier
     removeCoupon()
   }
