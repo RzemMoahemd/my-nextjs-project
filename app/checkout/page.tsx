@@ -164,6 +164,28 @@ export default function CheckoutPage() {
       })
 
       if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        // N6 : panier expiré ou stock parti entre-temps -> message clair + retour panier
+        if (res.status === 409 || errData.error === "CART_EXPIRED") {
+          toast({
+            title: "Panier expiré",
+            description: errData.message || "Votre panier a expiré ou un article n'est plus en stock. Vérifiez votre panier.",
+            variant: "destructive",
+          })
+          router.push("/cart")
+          return
+        }
+        // N4 : coupon devenu inutilisable entre l'application et la validation
+        // (limite atteinte par un autre client) -> retour panier pour en choisir un autre
+        if (res.status === 400 && typeof errData.error === "string" && errData.error.toLowerCase().includes("promo")) {
+          toast({
+            title: "Code promo refusé",
+            description: errData.error,
+            variant: "destructive",
+          })
+          router.push("/cart")
+          return
+        }
         throw new Error("Erreur lors de l'envoi de la commande")
       }
 
